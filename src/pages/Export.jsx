@@ -8,10 +8,11 @@ import { parseDescrStrat, serializeDescrStrat } from '../components/map/stratPar
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Download, Package, FileText, AlertCircle, CheckCircle2, Code2, Globe2, Layers } from 'lucide-react';
+import { Download, Package, FileText, AlertCircle, CheckCircle2, Code2, Globe2, Layers, FolderOpen } from 'lucide-react';
 import JSZip from 'jszip';
 import ValidationDashboard from '../components/export/ValidationDashboard';
 import TriggerValidationPanel from '../components/export/TriggerValidationPanel';
+import CampaignPackagePicker from '../components/export/CampaignPackagePicker';
 
 function getCampaigns() {
   try { const s = localStorage.getItem('m2tw_campaigns'); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -77,6 +78,8 @@ export default function Export() {
   const [building, setBuilding] = useState(false);
   const [done, setDone] = useState(false);
   const [exportingTwemp, setExportingTwemp] = useState(false);
+  // Map<relativePath, File> for extra files to bundle
+  const [extraFiles, setExtraFiles] = useState(new Map());
   const luaScripts = getLuaScripts();
   const hasLua = luaScripts.length > 0;
   const campaigns = getCampaigns();
@@ -181,6 +184,12 @@ export default function Export() {
       // Merge all campaign descriptions into one file
       const allDescs = campaigns.map(c => c.descriptions || '').join('\n');
       dataFolder.folder('text').file('campaign_descriptions.txt', `¬\n${allDescs}`.replace(/\n/g, '\r\n'));
+    }
+
+    // Bundle user-selected extra files (campaign package files)
+    for (const [relPath, file] of extraFiles.entries()) {
+      const buf = await file.arrayBuffer();
+      zip.file(`${modName}/${relPath}`, new Uint8Array(buf));
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -333,6 +342,27 @@ export default function Export() {
             </CardContent>
           </Card>
 
+          {/* Campaign Package Picker */}
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-primary" />
+                Additional Files
+                {extraFiles.size > 0 && (
+                  <span className="ml-auto text-[10px] font-normal text-amber-400 border border-amber-500/30 rounded px-1.5 py-0.5">
+                    {extraFiles.size} file{extraFiles.size !== 1 ? 's' : ''} selected
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-2">
+              <p className="text-[11px] text-muted-foreground">
+                Optionally include extra game files (map TGAs, config files, textures, etc.) in the zip. Files are placed under <code className="bg-accent px-1 rounded font-mono">{modName}/</code> preserving the relative folder structure.
+              </p>
+              <CampaignPackagePicker selectedFiles={extraFiles} onChange={setExtraFiles} />
+            </CardContent>
+          </Card>
+
           <ValidationDashboard edbData={edbData} />
           <TriggerValidationPanel />
 
@@ -363,7 +393,7 @@ export default function Export() {
           <Button
             className="w-full h-12 text-base gap-2"
             onClick={handleExportZip}
-            disabled={building || (!hasEDB && !hasTraits && !hasAnc && !hasLua && !hasCampaigns)}
+            disabled={building || (!hasEDB && !hasTraits && !hasAnc && !hasLua && !hasCampaigns && extraFiles.size === 0)}
           >
             {building ? (
               <>
@@ -385,7 +415,7 @@ export default function Export() {
             </div>
           )}
 
-          {!hasEDB && !hasTraits && !hasAnc && !hasLua && !hasCampaigns && (
+          {!hasEDB && !hasTraits && !hasAnc && !hasLua && !hasCampaigns && extraFiles.size === 0 && (
             <div className="flex items-center gap-2 text-muted-foreground text-xs justify-center">
               <AlertCircle className="w-3.5 h-3.5" />
               Load at least one moddable file to enable export.
