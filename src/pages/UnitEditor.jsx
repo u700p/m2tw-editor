@@ -154,15 +154,18 @@ export default function UnitEditorPage() {
   const stringsBinRef = useRef();
   const unitUiFolderRef = useRef();
 
-  // Auto-load from EDU file and export_units.txt if Home page cached them
+  // Auto-load from cached EDU file on mount (always prefer the raw file over stale parsed cache)
   useEffect(() => {
     try {
       const eduContent = localStorage.getItem(EDU_FILE_KEY);
       const eduName = localStorage.getItem(EDU_FILE_NAME_KEY);
-      if (eduContent && units.length === 0) {
+      if (eduContent) {
         const parsed = parseEDU(eduContent);
-        setUnits(parsed);
-        if (eduName) setFilename(eduName);
+        if (parsed.length > 0) {
+          setUnits(parsed);
+          saveUnits(parsed);
+          if (eduName) setFilename(eduName);
+        }
       }
     } catch {}
   }, []);
@@ -280,6 +283,7 @@ export default function UnitEditorPage() {
     const file = e.target.files[0];
     if (!file) return;
     setFilename(file.name);
+    localStorage.setItem(EDU_FILE_NAME_KEY, file.name);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target.result;
@@ -288,7 +292,8 @@ export default function UnitEditorPage() {
       setActiveIndex(0);
       // Persist so Unit Card Generator (and other tools) can read it
       try { localStorage.setItem(EDU_FILE_KEY, text); } catch {}
-      window.dispatchEvent(new CustomEvent('load-export-units'));
+      // Notify same-tab listeners (UnitCardGenerator etc.)
+      window.dispatchEvent(new CustomEvent('edu-file-loaded'));
     };
     reader.readAsText(file);
     e.target.value = '';

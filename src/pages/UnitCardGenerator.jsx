@@ -502,15 +502,13 @@ export default function UnitCardGenerator() {
   // Re-load whenever EDU is saved to localStorage (same tab or other tab)
   useEffect(() => {
     const reload = () => setEduUnitsLive(loadEduUnits());
-    // cross-tab
+    // cross-tab: storage event fires when another tab writes to localStorage
     window.addEventListener('storage', reload);
-    // same-tab: Unit Editor dispatches this after saving to localStorage
-    window.addEventListener('load-export-units', reload);
-    // also fire once when picker opens in case data was loaded before this page mounted
-    reload();
+    // same-tab: Unit Editor dispatches this custom event after writing EDU to localStorage
+    window.addEventListener('edu-file-loaded', reload);
     return () => {
       window.removeEventListener('storage', reload);
-      window.removeEventListener('load-export-units', reload);
+      window.removeEventListener('edu-file-loaded', reload);
     };
   }, []);
 
