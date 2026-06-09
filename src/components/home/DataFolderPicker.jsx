@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, CheckCircle2, XCircle, FileText, Image, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { FolderOpen, CheckCircle2, FileText, Image, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 
 const CATEGORY_LABELS = {
   text:           { label: 'Game Data Files',         defaultOn: true,  icon: FileText },
@@ -26,30 +26,17 @@ function categorizeFile(file) {
   const name = file.name.toLowerCase();
   const path = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
 
-  // Strings .bin
-  if (name.endsWith('.strings.bin') || (name.endsWith('.bin') && path.includes('/text/'))) {
-    return 'strings_bin';
-  }
-
-  // Campaign map files — must come BEFORE generic TGA check
+  if (name.endsWith('.strings.bin') || (name.endsWith('.bin') && path.includes('/text/'))) return 'strings_bin';
   if (path.includes('/maps/campaign/') || path.includes('/maps/base/')) {
     if (name.endsWith('.tga') || name.endsWith('.txt')) return 'campaign';
     return null;
   }
-
-  // TGA images — split between terrain and UI
   if (name.endsWith('.tga')) {
-    // Must be under data/ui/ to be counted as UI
-    if (!path.includes('/ui/')) return null; // skip terrain TGAs outside /ui/
+    if (!path.includes('/ui/')) return null;
     if (path.includes('/terrain/')) return 'images_terrain';
     return 'images_ui';
   }
-
-  // Known text files
-  if (TEXT_FILENAMES.has(name)) {
-    return 'text';
-  }
-
+  if (TEXT_FILENAMES.has(name)) return 'text';
   return null;
 }
 
@@ -64,13 +51,8 @@ function summarizeFiles(files) {
   return byCategory;
 }
 
-// Detect direct campaign sub-folders from /maps/campaign/<name>/ (e.g. imperial_campaign)
-// Returns { direct: string[], custom: string[] }
-// direct = non-"custom" folders (always included, no checkbox)
-// custom = sub-folders found under /maps/campaign/custom/<name>/
 function detectCampaignFolders(files) {
-  const direct = new Set();
-  const custom = new Set();
+  const direct = new Set(), custom = new Set();
   for (const file of files) {
     const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
     const customMatch = path.match(/\/maps\/campaign\/custom\/([^/]+)\//);
@@ -81,7 +63,6 @@ function detectCampaignFolders(files) {
   return { direct: [...direct], custom: [...custom] };
 }
 
-// Detect UI sub-folders from /ui/<subfolder>/
 function detectUiFolders(files) {
   const folders = new Set();
   for (const file of files) {
@@ -92,16 +73,19 @@ function detectUiFolders(files) {
   return [...folders];
 }
 
+function fkey(f) { return f.webkitRelativePath || f.name; }
+
+// Categories that support individual file selection
+const INDIVIDUAL_SELECT_CATS = new Set(['text', 'strings_bin', 'images_terrain']);
+
 export default function DataFolderPicker({ onLoad, loading }) {
   const inputRef = useRef();
   const [scanned, setScanned] = useState(null);
   const [checked, setChecked] = useState({});
+  const [checkedFiles, setCheckedFiles] = useState(new Set());
   const [expanded, setExpanded] = useState({});
-  // campaign folder selection
   const [selectedCampaigns, setSelectedCampaigns] = useState(new Set());
-  // ui sub-folder selection
   const [selectedUiFolders, setSelectedUiFolders] = useState(new Set());
-  // per-campaign-folder expand (to show files inside)
   const [expandedCampaign, setExpandedCampaign] = useState(new Set());
   const [expandedUiFolder, setExpandedUiFolder] = useState(new Set());
 
@@ -115,12 +99,16 @@ export default function DataFolderPicker({ onLoad, loading }) {
     const uiFolders = detectUiFolders(byCategory['images_ui'] || []);
 
     const initChecked = {};
-    for (const cat of Object.keys(byCategory)) {
-      initChecked[cat] = CATEGORY_LABELS[cat]?.defaultOn ?? true;
+    const initCheckedFiles = new Set();
+    for (const [cat, catFiles] of Object.entries(byCategory)) {
+      const on = CATEGORY_LABELS[cat]?.defaultOn ?? true;
+      initChecked[cat] = on;
+      if (on) catFiles.forEach(f => initCheckedFiles.add(fkey(f)));
     }
+
     setChecked(initChecked);
+    setCheckedFiles(initCheckedFiles);
     setScanned({ byCategory, allFiles: files, directCampaigns, customCampaigns, uiFolders });
-    // Pre-select only the first detected campaign (radio: one at a time)
     const allCampaigns = [...directCampaigns, ...customCampaigns];
     setSelectedCampaigns(allCampaigns.length > 0 ? new Set([allCampaigns[0]]) : new Set());
     setSelectedUiFolders(new Set(uiFolders));
@@ -129,103 +117,49 @@ export default function DataFolderPicker({ onLoad, loading }) {
     setExpandedUiFolder(new Set());
   };
 
-  const toggleCat = (cat) => setChecked(prev => ({ ...prev, [cat]: !prev[cat] }));
+  const toggleCat = (cat) => {
+    const willBeOn = !checked[cat];
+    setChecked(prev => ({ ...prev, [cat]: willBeOn }));
+    if (scanned && INDIVIDUAL_SELECT_CATS.has(cat)) {
+      const files = scanned.byCategory[cat] || [];
+      setCheckedFiles(prev => {
+        const next = new Set(prev);
+        files.forEach(f => willBeOn ? next.add(fkey(f)) : next.delete(fkey(f)));
+        return next;
+      });
+    }
+  };
+
+  const toggleFile = (f) => {
+    const k = fkey(f);
+    setCheckedFiles(prev => {
+      const next = new Set(prev);
+      next.has(k) ? next.delete(k) : next.add(k);
+      return next;
+    });
+  };
+
   const toggleExpand = (cat) => setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }));
 
-  // Only one campaign folder at a time (radio behaviour)
-  const toggleCampaign = (name) => setSelectedCampaigns(prev => {
-    if (prev.has(name)) return new Set(); // deselect
-    return new Set([name]);              // select only this one
-  });
+  const toggleCampaign = (name) => setSelectedCampaigns(prev =>
+    prev.has(name) ? new Set() : new Set([name]));
 
   const toggleUiFolder = (name) => setSelectedUiFolders(prev => {
-    const next = new Set(prev);
-    if (next.has(name)) next.delete(name); else next.add(name);
-    return next;
+    const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n;
   });
-
   const toggleExpandCampaign = (name) => setExpandedCampaign(prev => {
-    const next = new Set(prev);
-    if (next.has(name)) next.delete(name); else next.add(name);
-    return next;
+    const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n;
   });
-
   const toggleExpandUiFolder = (name) => setExpandedUiFolder(prev => {
-    const next = new Set(prev);
-    if (next.has(name)) next.delete(name); else next.add(name);
-    return next;
+    const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n;
   });
 
-  // Files in a direct campaign folder (e.g. imperial_campaign)
-  const directCampaignFiles = (folder) => {
-    if (!scanned) return [];
-    return (scanned.byCategory['campaign'] || []).filter(f => {
-      const path = (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-      return path.includes(`/campaign/${folder}/`);
-    });
-  };
-
-  // Files in a custom sub-folder
-  const customCampaignFiles = (folder) => {
-    if (!scanned) return [];
-    return (scanned.byCategory['campaign'] || []).filter(f => {
-      const path = (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-      return path.includes(`/campaign/custom/${folder}/`);
-    });
-  };
-
-  // Files in a UI sub-folder
-  const uiFolderFiles = (folder) => {
-    if (!scanned) return [];
-    return (scanned.byCategory['images_ui'] || []).filter(f => {
-      const path = (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-      return path.includes(`/ui/${folder}/`);
-    });
-  };
-
-  const handleConfirm = () => {
-    if (!scanned) return;
-    const toLoad = [];
-    for (const [cat, files] of Object.entries(scanned.byCategory)) {
-      if (!checked[cat]) continue;
-      if (cat === 'campaign') {
-        // Separate into base files, selected campaign files
-        const baseFiles = [];
-        const campaignFiles = [];
-        for (const file of files) {
-          const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-          const customMatch = path.match(/\/maps\/campaign\/custom\/([^/]+)\//);
-          if (customMatch) {
-            if (selectedCampaigns.has(customMatch[1])) campaignFiles.push(file);
-            continue;
-          }
-          const directMatch = path.match(/\/maps\/campaign\/([^/]+)\//);
-          if (directMatch && directMatch[1] !== 'custom') {
-            if (selectedCampaigns.has(directMatch[1])) campaignFiles.push(file);
-            continue;
-          }
-          // base/ files
-          baseFiles.push(file);
-        }
-        // Custom/direct campaign files supersede base files with the same name
-        const campaignFileNames = new Set(campaignFiles.map(f => f.name.toLowerCase()));
-        for (const f of baseFiles) {
-          if (!campaignFileNames.has(f.name.toLowerCase())) toLoad.push(f);
-        }
-        // Campaign files come after (last-write-wins in processDataFiles, but duplicates already removed above)
-        toLoad.push(...campaignFiles);
-      } else if (cat === 'images_ui') {
-        for (const file of files) {
-          const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-          const match = path.match(/\/ui\/([^/]+)\//);
-          if (!match || selectedUiFolders.has(match[1])) toLoad.push(file);
-        }
-      } else {
-        toLoad.push(...files);
-      }
-    }
-    onLoad(toLoad, [...(scanned.directCampaigns || []), ...(scanned.customCampaigns || [])], [...selectedCampaigns]);
-  };
+  const directCampaignFiles = (folder) => (scanned?.byCategory['campaign'] || []).filter(f =>
+    (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes(`/campaign/${folder}/`));
+  const customCampaignFiles = (folder) => (scanned?.byCategory['campaign'] || []).filter(f =>
+    (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes(`/campaign/custom/${folder}/`));
+  const uiFolderFiles = (folder) => (scanned?.byCategory['images_ui'] || []).filter(f =>
+    (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes(`/ui/${folder}/`));
 
   const countSelected = () => {
     if (!scanned) return 0;
@@ -239,7 +173,7 @@ export default function DataFolderPicker({ onLoad, loading }) {
           if (customMatch) return selectedCampaigns.has(customMatch[1]);
           const directMatch = path.match(/\/maps\/campaign\/([^/]+)\//);
           if (directMatch && directMatch[1] !== 'custom') return selectedCampaigns.has(directMatch[1]);
-          return true; // base/ files always counted
+          return true;
         }).length;
       } else if (cat === 'images_ui') {
         s += files.filter(f => {
@@ -248,10 +182,41 @@ export default function DataFolderPicker({ onLoad, loading }) {
           return !m || selectedUiFolders.has(m[1]);
         }).length;
       } else {
-        s += files.length;
+        s += files.filter(f => checkedFiles.has(fkey(f))).length;
       }
     }
     return s;
+  };
+
+  const handleConfirm = () => {
+    if (!scanned) return;
+    const toLoad = [];
+    for (const [cat, files] of Object.entries(scanned.byCategory)) {
+      if (!checked[cat]) continue;
+      if (cat === 'campaign') {
+        const baseFiles = [], campaignFiles = [];
+        for (const file of files) {
+          const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
+          const customMatch = path.match(/\/maps\/campaign\/custom\/([^/]+)\//);
+          if (customMatch) { if (selectedCampaigns.has(customMatch[1])) campaignFiles.push(file); continue; }
+          const directMatch = path.match(/\/maps\/campaign\/([^/]+)\//);
+          if (directMatch && directMatch[1] !== 'custom') { if (selectedCampaigns.has(directMatch[1])) campaignFiles.push(file); continue; }
+          baseFiles.push(file);
+        }
+        const campaignFileNames = new Set(campaignFiles.map(f => f.name.toLowerCase()));
+        for (const f of baseFiles) { if (!campaignFileNames.has(f.name.toLowerCase())) toLoad.push(f); }
+        toLoad.push(...campaignFiles);
+      } else if (cat === 'images_ui') {
+        for (const file of files) {
+          const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
+          const match = path.match(/\/ui\/([^/]+)\//);
+          if (!match || selectedUiFolders.has(match[1])) toLoad.push(file);
+        }
+      } else {
+        toLoad.push(...files.filter(f => checkedFiles.has(fkey(f))));
+      }
+    }
+    onLoad(toLoad, [...(scanned.directCampaigns || []), ...(scanned.customCampaigns || [])], [...selectedCampaigns]);
   };
 
   const totalSelected = countSelected();
@@ -280,7 +245,7 @@ export default function DataFolderPicker({ onLoad, loading }) {
         <div className="border border-border rounded-lg overflow-hidden bg-background">
           <div className="px-3 py-2 border-b border-border bg-accent/10 flex items-center justify-between">
             <span className="text-[11px] font-semibold text-foreground">
-              {scanned.allFiles.length} files detected — select what to load
+              {scanned.allFiles.length} files detected
             </span>
             <span className="text-[10px] text-muted-foreground">{totalSelected} selected</span>
           </div>
@@ -292,25 +257,26 @@ export default function DataFolderPicker({ onLoad, loading }) {
               const Icon = meta.icon;
               const isOn = !!checked[cat];
               const isExp = !!expanded[cat];
+              const selectedCount = INDIVIDUAL_SELECT_CATS.has(cat)
+                ? files.filter(f => checkedFiles.has(fkey(f))).length
+                : files.length;
 
               return (
                 <div key={cat}>
-                  {/* Category header row */}
-                  <div className="flex items-center gap-2 px-3 py-2 hover:bg-accent/5">
-                    <input
-                      type="checkbox"
-                      checked={isOn}
-                      onChange={() => toggleCat(cat)}
-                      className="accent-primary w-3.5 h-3.5 shrink-0"
-                    />
+                  {/* Category header */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent/5">
+                    <input type="checkbox" checked={isOn} onChange={() => toggleCat(cat)}
+                      className="accent-primary w-3.5 h-3.5 shrink-0" />
                     <Icon className={`w-3.5 h-3.5 shrink-0 ${isOn ? 'text-primary' : 'text-muted-foreground'}`} />
                     <span className={`text-xs flex-1 font-medium ${isOn ? 'text-foreground' : 'text-muted-foreground'}`}>
                       {meta.label}
                     </span>
-                    <Badge variant="outline" className="text-[10px] h-4">{files.length}</Badge>
-                    {!meta.defaultOn && (
-                      <span className="text-[9px] text-amber-400 font-medium">large</span>
+                    {INDIVIDUAL_SELECT_CATS.has(cat) ? (
+                      <span className="text-[10px] text-muted-foreground">{selectedCount}/{files.length}</span>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] h-4">{files.length}</Badge>
                     )}
+                    {!meta.defaultOn && <span className="text-[9px] text-amber-400 font-medium">large</span>}
                     <button onClick={() => toggleExpand(cat)} className="text-muted-foreground hover:text-foreground ml-1">
                       {isExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                     </button>
@@ -318,18 +284,35 @@ export default function DataFolderPicker({ onLoad, loading }) {
 
                   {/* Expanded content */}
                   {isExp && (
-                    <div className="bg-accent/5 px-4 py-2 space-y-1 max-h-64 overflow-y-auto">
+                    <div className="bg-accent/5 px-3 py-2">
 
-                      {/* Campaign: base + direct (always on, expandable) + custom sub-folders (checkboxes) */}
-                      {cat === 'campaign' ? (
+                      {/* Individual file selection: compact 2-column chip grid */}
+                      {INDIVIDUAL_SELECT_CATS.has(cat) ? (
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                          {files.map((f, i) => {
+                            const k = fkey(f);
+                            const isChecked = checkedFiles.has(k);
+                            return (
+                              <label key={i} className="flex items-center gap-1.5 px-1 py-0.5 rounded hover:bg-accent/20 cursor-pointer group min-w-0">
+                                <input type="checkbox" checked={isChecked} onChange={() => toggleFile(f)}
+                                  className="accent-primary w-3 h-3 shrink-0" />
+                                <span className={`text-[10px] font-mono truncate leading-tight ${isChecked ? 'text-foreground' : 'text-muted-foreground/50 line-through'}`}
+                                  title={f.name}>
+                                  {f.name}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                      /* Campaign: base + direct (radio) + custom sub-folders (radio) */
+                      ) : cat === 'campaign' ? (
                         <div className="space-y-1">
-                          {/* Base map files — always included */}
                           {(() => {
                             const baseFiles = (scanned.byCategory['campaign'] || []).filter(f =>
-                              (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes('/maps/base/')
-                            );
-                            if (baseFiles.length === 0) return null;
-                            const isExp = expandedCampaign.has('__base__');
+                              (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes('/maps/base/'));
+                            if (!baseFiles.length) return null;
+                            const isExpB = expandedCampaign.has('__base__');
                             return (
                               <div>
                                 <div className="flex items-center gap-2">
@@ -338,11 +321,11 @@ export default function DataFolderPicker({ onLoad, loading }) {
                                   <span className="text-[9px] text-green-400 font-medium">always</span>
                                   <span className="text-[10px] text-muted-foreground">{baseFiles.length} files</span>
                                   <button onClick={() => toggleExpandCampaign('__base__')} className="text-muted-foreground hover:text-foreground">
-                                    {isExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                    {isExpB ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                                   </button>
                                 </div>
-                                {isExp && (
-                                  <div className="ml-5 mt-1 space-y-0.5">
+                                {isExpB && (
+                                  <div className="ml-5 mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0.5">
                                     {baseFiles.map((f, i) => <p key={i} className="text-[10px] font-mono text-muted-foreground truncate">{f.name}</p>)}
                                   </div>
                                 )}
@@ -350,28 +333,22 @@ export default function DataFolderPicker({ onLoad, loading }) {
                             );
                           })()}
 
-                          {/* Direct campaign folders (e.g. imperial_campaign) — radio */}
                           {scanned.directCampaigns.map(folder => {
                             const folderFiles = directCampaignFiles(folder);
-                            const isExp = expandedCampaign.has(folder);
+                            const isExpF = expandedCampaign.has(folder);
                             return (
                               <div key={folder}>
                                 <div className="flex items-center gap-2">
-                                  <input
-                                    type="radio"
-                                    name="campaign_select"
-                                    checked={selectedCampaigns.has(folder)}
-                                    onChange={() => toggleCampaign(folder)}
-                                    className="accent-primary w-3 h-3 shrink-0"
-                                  />
+                                  <input type="radio" name="campaign_select" checked={selectedCampaigns.has(folder)}
+                                    onChange={() => toggleCampaign(folder)} className="accent-primary w-3 h-3 shrink-0" />
                                   <span className="text-[11px] font-mono text-foreground flex-1">{folder}/</span>
                                   <span className="text-[10px] text-muted-foreground">{folderFiles.length} files</span>
                                   <button onClick={() => toggleExpandCampaign(folder)} className="text-muted-foreground hover:text-foreground">
-                                    {isExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                    {isExpF ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                                   </button>
                                 </div>
-                                {isExp && (
-                                  <div className="ml-5 mt-1 space-y-0.5">
+                                {isExpF && (
+                                  <div className="ml-5 mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0.5">
                                     {folderFiles.map((f, i) => <p key={i} className="text-[10px] font-mono text-muted-foreground truncate">{f.name}</p>)}
                                   </div>
                                 )}
@@ -379,31 +356,25 @@ export default function DataFolderPicker({ onLoad, loading }) {
                             );
                           })}
 
-                          {/* Custom sub-folders — radio (one at a time) */}
                           {scanned.customCampaigns.length > 0 && (
                             <>
-                              <p className="text-[10px] text-muted-foreground pt-1 pb-0.5 border-t border-border mt-1">custom/ sub-folders — select one:</p>
+                              <p className="text-[10px] text-muted-foreground pt-1 pb-0.5 border-t border-border mt-1">custom/ — select one:</p>
                               {scanned.customCampaigns.map(folder => {
                                 const folderFiles = customCampaignFiles(folder);
-                                const isExp = expandedCampaign.has(`custom:${folder}`);
+                                const isExpF = expandedCampaign.has(`custom:${folder}`);
                                 return (
                                   <div key={folder}>
                                     <div className="flex items-center gap-2">
-                                      <input
-                                        type="radio"
-                                        name="campaign_select"
-                                        checked={selectedCampaigns.has(folder)}
-                                        onChange={() => toggleCampaign(folder)}
-                                        className="accent-primary w-3 h-3 shrink-0"
-                                      />
+                                      <input type="radio" name="campaign_select" checked={selectedCampaigns.has(folder)}
+                                        onChange={() => toggleCampaign(folder)} className="accent-primary w-3 h-3 shrink-0" />
                                       <span className="text-[11px] font-mono text-foreground flex-1">custom/{folder}/</span>
                                       <span className="text-[10px] text-muted-foreground">{folderFiles.length} files</span>
                                       <button onClick={() => toggleExpandCampaign(`custom:${folder}`)} className="text-muted-foreground hover:text-foreground">
-                                        {isExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                        {isExpF ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                                       </button>
                                     </div>
-                                    {isExp && (
-                                      <div className="ml-5 mt-1 space-y-0.5">
+                                    {isExpF && (
+                                      <div className="ml-5 mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0.5">
                                         {folderFiles.map((f, i) => <p key={i} className="text-[10px] font-mono text-muted-foreground truncate">{f.name}</p>)}
                                       </div>
                                     )}
@@ -414,22 +385,18 @@ export default function DataFolderPicker({ onLoad, loading }) {
                           )}
                         </div>
 
-                      /* UI images: show sub-folder checkboxes with file lists */
+                      /* UI images: sub-folder checkboxes */
                       ) : cat === 'images_ui' && scanned.uiFolders.length > 0 ? (
                         <div className="space-y-1">
-                          <p className="text-[10px] text-muted-foreground mb-1.5">Select UI sub-folders to include:</p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Select UI sub-folders:</p>
                           {scanned.uiFolders.map(folder => {
                             const folderFiles = uiFolderFiles(folder);
                             const isFolderExp = expandedUiFolder.has(folder);
                             return (
                               <div key={folder}>
                                 <div className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedUiFolders.has(folder)}
-                                    onChange={() => toggleUiFolder(folder)}
-                                    className="accent-primary w-3 h-3 shrink-0"
-                                  />
+                                  <input type="checkbox" checked={selectedUiFolders.has(folder)} onChange={() => toggleUiFolder(folder)}
+                                    className="accent-primary w-3 h-3 shrink-0" />
                                   <span className="text-[11px] font-mono text-foreground flex-1">ui/{folder}/</span>
                                   <span className="text-[10px] text-muted-foreground">{folderFiles.length} files</span>
                                   <button onClick={() => toggleExpandUiFolder(folder)} className="text-muted-foreground hover:text-foreground">
@@ -437,25 +404,15 @@ export default function DataFolderPicker({ onLoad, loading }) {
                                   </button>
                                 </div>
                                 {isFolderExp && (
-                                  <div className="ml-5 mt-1 space-y-0.5">
-                                    {folderFiles.map((f, i) => (
-                                      <p key={i} className="text-[10px] font-mono text-muted-foreground truncate">{f.name}</p>
-                                    ))}
+                                  <div className="ml-5 mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                    {folderFiles.map((f, i) => <p key={i} className="text-[10px] font-mono text-muted-foreground truncate">{f.name}</p>)}
                                   </div>
                                 )}
                               </div>
                             );
                           })}
                         </div>
-
-                      /* Default: flat file list */
-                      ) : (
-                        files.map((f, i) => (
-                          <p key={i} className="text-[10px] font-mono text-muted-foreground truncate">
-                            {f.name}
-                          </p>
-                        ))
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -463,17 +420,12 @@ export default function DataFolderPicker({ onLoad, loading }) {
             })}
           </div>
 
-          {/* Load button */}
           <div className="px-3 py-2 border-t border-border bg-accent/10">
-            <Button
-              className="w-full h-9 gap-2 text-xs"
-              onClick={handleConfirm}
-              disabled={loading || totalSelected === 0}
-            >
+            <Button className="w-full h-9 gap-2 text-xs" onClick={handleConfirm}
+              disabled={loading || totalSelected === 0}>
               {loading
                 ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading files…</>
-                : <><CheckCircle2 className="w-3.5 h-3.5" /> Load {totalSelected} selected files</>
-              }
+                : <><CheckCircle2 className="w-3.5 h-3.5" /> Load {totalSelected} selected files</>}
             </Button>
           </div>
         </div>
