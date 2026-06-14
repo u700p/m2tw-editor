@@ -1,12 +1,20 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, Plus, Download, Trash2, Eye, EyeOff, ImagePlus } from 'lucide-react';
+import { Upload, Plus, Download, Trash2, ImagePlus, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { parseSdXml, serialiseSdXml } from './sdXmlParser';
 import SpriteCanvas from './SpriteCanvas';
+import { decodeTgaToDataUrl } from '@/components/shared/tgaDecoder';
 
-function loadImageAsDataUrl(file) {
+async function loadImageAsDataUrl(file) {
+  const isTga = file.name.toLowerCase().endsWith('.tga');
+  if (isTga) {
+    const buf = await file.arrayBuffer();
+    const url = decodeTgaToDataUrl(buf);
+    if (!url) throw new Error('Could not decode TGA file');
+    return url;
+  }
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = e => resolve(e.target.result);
@@ -27,6 +35,7 @@ export default function SpriteSheetEditor({ label, storageKey }) {
   const [newPageFile, setNewPageFile] = useState('');
   const [newPageW, setNewPageW] = useState(512);
   const [newPageH, setNewPageH] = useState(512);
+  const [imageError, setImageError] = useState({});
   const xmlInputRef = useRef();
 
   // --- Load XML ---
@@ -45,8 +54,15 @@ export default function SpriteSheetEditor({ label, storageKey }) {
   const handlePageImage = useCallback(async (e, pageIdx) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await loadImageAsDataUrl(file);
-    setPageImages(prev => ({ ...prev, [pageIdx]: url }));
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+    setImageError(prev => ({ ...prev, [pageIdx]: null }));
+    try {
+      const url = await loadImageAsDataUrl(file);
+      setPageImages(prev => ({ ...prev, [pageIdx]: url }));
+    } catch (err) {
+      setImageError(prev => ({ ...prev, [pageIdx]: err.message }));
+    }
   }, []);
 
   // --- Add a new TGA page entry ---
@@ -97,6 +113,16 @@ export default function SpriteSheetEditor({ label, storageKey }) {
     setPendingRect(null);
     setNewSpriteName('');
     setSelectionMode(false);
+  };
+
+  // --- Duplicate a sprite ---
+  const duplicateSprite = (index) => {
+    setData(prev => {
+      const src = prev.sprites.find(s => s.index === index);
+      if (!src) return prev;
+      const newSprite = { ...src, index: prev.sprites.length, name: src.name + '_COPY' };
+      return { ...prev, sprites: [...prev.sprites, newSprite] };
+    });
   };
 
   // --- Delete a sprite ---
@@ -208,10 +234,17 @@ export default function SpriteSheetEditor({ label, storageKey }) {
               <span className="font-mono">{activePage.file}</span>
               <span>{activePage.width}×{activePage.height}</span>
               <label className="cursor-pointer flex items-center gap-1 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors">
-                <ImagePlus className="w-3 h-3" /> Upload TGA/PNG
-                <input type="file" accept="image/*,.tga" className="hidden"
+                <ImagePlus className="w-3 h-3" />
+                {pageImages[activePageIdx] ? 'Replace TGA/PNG' : 'Upload TGA/PNG'}
+                <input type="file" accept="image/png,image/jpeg,image/bmp,.tga" className="hidden"
                   onChange={e => handlePageImage(e, activePageIdx)} />
               </label>
+              {imageError[activePageIdx] && (
+                <span className="text-red-400 text-[9px]">⚠ {imageError[activePageIdx]}</span>
+              )}
+              {pageImages[activePageIdx] && (
+                <span className="text-green-500 text-[9px]">✓ loaded</span>
+              )}
               <button
                 onClick={() => setSelectionMode(v => !v)}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
@@ -280,7 +313,14 @@ export default function SpriteSheetEditor({ label, storageKey }) {
                   <span className="flex-1 truncate font-mono">{sp.name}</span>
                   <span className="text-slate-600 shrink-0">p{sp.page}</span>
                   <button
-                    onClick={() => deleteSprite(sp.index)}
+                    onClick={(e) => { e.stopPropagation(); duplicateSprite(sp.index); }}
+                    title="Duplicate"
+                    className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 shrink-0 transition-opacity">
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteSprite(sp.index); }}
+                    title="Delete"
                     className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 shrink-0 transition-opacity">
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -297,24 +337,31 @@ export default function SpriteSheetEditor({ label, storageKey }) {
             const sp = data.sprites.find(s => s.index === hoveredIdx);
             if (!sp) return null;
             return (
-              <div className="p-2 bg-slate-800/60 border border-slate-700 rounded text-[9px] space-y-1">
-                <p className="font-mono text-amber-400 font-semibold truncate">{sp.name}</p>
+              <div className="p-2 bg-slate-800/60 border border-slate-700 rounded text-[9px] space-y-1.5">
+                <input
+                  className="w-full bg-transparent border-b border-amber-600/50 outline-none text-amber-400 font-mono font-semibold text-[10px]"
+                  value={sp.name}
+                  onChange={e => updateSprite(sp.index, 'name', e.target.value.toUpperCase())}
+                  title="Rename sprite"
+                />
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-400 font-mono">
-                  <span>page:</span><span>{sp.page}</span>
-                  <span>left:</span>
+                  <span>page:</span><span className="text-slate-300">{sp.page}</span>
+                  {[['left','left'],['top','top'],['right','right'],['bottom','bottom'],['x_offset','x_offset'],['y_offset','y_offset']].map(([label, field]) => (
+                    <React.Fragment key={field}>
+                      <span>{label}:</span>
+                      <input className="bg-transparent border-b border-slate-600 w-full outline-none text-slate-300"
+                        value={sp[field] ?? 0} onChange={e => updateSprite(sp.index, field, e.target.value)} />
+                    </React.Fragment>
+                  ))}
+                  <span>alpha:</span>
                   <input className="bg-transparent border-b border-slate-600 w-full outline-none text-slate-300"
-                    value={sp.left} onChange={e => updateSprite(sp.index, 'left', e.target.value)} />
-                  <span>top:</span>
-                  <input className="bg-transparent border-b border-slate-600 w-full outline-none text-slate-300"
-                    value={sp.top} onChange={e => updateSprite(sp.index, 'top', e.target.value)} />
-                  <span>right:</span>
-                  <input className="bg-transparent border-b border-slate-600 w-full outline-none text-slate-300"
-                    value={sp.right} onChange={e => updateSprite(sp.index, 'right', e.target.value)} />
-                  <span>bottom:</span>
-                  <input className="bg-transparent border-b border-slate-600 w-full outline-none text-slate-300"
-                    value={sp.bottom} onChange={e => updateSprite(sp.index, 'bottom', e.target.value)} />
-                  <span>size:</span><span>{sp.right - sp.left}×{sp.bottom - sp.top}</span>
+                    value={sp.alpha ?? '1'} onChange={e => updateSprite(sp.index, 'alpha', e.target.value)} />
+                  <span>size:</span><span className="text-slate-300">{sp.right - sp.left}×{sp.bottom - sp.top}</span>
                 </div>
+                <button onClick={() => duplicateSprite(sp.index)}
+                  className="w-full mt-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-blue-900/30 border border-blue-700/40 text-blue-400 hover:bg-blue-800/40 transition-colors text-[9px]">
+                  <Copy className="w-3 h-3" /> Duplicate Sprite
+                </button>
               </div>
             );
           })()}
