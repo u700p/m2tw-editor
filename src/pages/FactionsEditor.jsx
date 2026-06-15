@@ -1,8 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Download, Plus, Trash2, AlertTriangle, Shield, X, Copy } from 'lucide-react';
+import { Upload, Download, Plus, Trash2, AlertTriangle, Shield, X, Copy, GripVertical, Palette, FileText, Settings, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const VANILLA_FACTION_LIMIT = 31;
 const LS_KEY = 'm2tw_sm_factions_raw';
@@ -338,10 +341,11 @@ function HordeUnitsEditor({ units, onChange, eduUnits }) {
 // ── Faction detail panel ──────────────────────────────────────────────────────
 function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSave, onCancel }) {
   const [draft, setDraft] = useState({ ...faction });
+  const [activeTab, setActiveTab] = useState('stratmap');
   const set = (key, val) => setDraft({ ...draft, [key]: val });
   const handleSave = () => { onChange(draft); onSave?.(); };
   const handleCancel = () => { setDraft({ ...faction }); onCancel?.(); };
-  const nameUpper = (faction.name || '').toUpperCase();
+  const nameUpper = (draft.name || '').toUpperCase();
   const defaultLogo = `FACTION_LOGO_${nameUpper}`;
   const defaultSmallLogo = `SMALL_FACTION_LOGO_${nameUpper}`;
 
@@ -357,14 +361,24 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-4 space-y-5 max-w-xl">
+      <div className="p-4 max-w-xl">
         <div className="flex items-center justify-between border-b border-slate-600 pb-2 mb-4">
-          <h2 className="text-sm font-semibold text-slate-200">Edit Faction</h2>
+          <h2 className="text-sm font-semibold text-slate-200">Edit Faction: {draft.name}</h2>
           <div className="flex gap-2">
             <button onClick={handleCancel} className="px-3 py-1 text-[10px] rounded border border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</button>
             <button onClick={handleSave} className="px-3 py-1 text-[10px] rounded bg-green-700 hover:bg-green-600 text-white font-semibold">Save Changes</button>
           </div>
         </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="stratmap" className="text-[10px]"><Palette className="w-3 h-3 mr-1" />Stratmap</TabsTrigger>
+            <TabsTrigger value="banners" className="text-[10px]"><FileText className="w-3 h-3 mr-1" />Banners</TabsTrigger>
+            <TabsTrigger value="descriptions" className="text-[10px]"><ScrollText className="w-3 h-3 mr-1" />Descriptions</TabsTrigger>
+            <TabsTrigger value="misc" className="text-[10px]"><Settings className="w-3 h-3 mr-1" />Misc</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="stratmap" className="space-y-5">
         <section className="space-y-2">
           <h3 className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-600 pb-1">Identity</h3>
           <div className="flex items-center gap-3">
@@ -395,6 +409,8 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
           <h3 className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-600 pb-1">Colours</h3>
           <ColourPickerField label="Primary Colour" colour={draft.primary_colour} onChange={(v) => set('primary_colour', v)} />
           <ColourPickerField label="Secondary Colour" colour={draft.secondary_colour} onChange={(v) => set('secondary_colour', v)} />
+          <ColourPickerField label="Tertiary Colour (M2EX only)" colour={draft.tertiary_colour || { r: 0, g: 0, b: 0 }} onChange={(v) => set('tertiary_colour', v)} />
+          <p className="text-[9px] text-amber-300 mt-1">⚠ Tertiary colour only works with M2EX</p>
         </section>
 
         <section className="space-y-2">
@@ -461,6 +477,46 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
           }
         </section>
 
+          </TabsContent>
+
+          <TabsContent value="banners" className="space-y-4">
+            <div className="text-center py-8 text-slate-400">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-semibold">Banners Configuration</p>
+              <p className="text-xs mt-1">Upload and edit descr_banners_new.xml for this faction</p>
+              <Button variant="outline" size="sm" className="mt-4 text-[10px]">
+                <Upload className="w-3 h-3 mr-1" /> Load Banners File
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="descriptions" className="space-y-4">
+            <div className="text-center py-8 text-slate-400">
+              <ScrollText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-semibold">Faction Descriptions</p>
+              <p className="text-xs mt-1">Edit expanded.txt and campaign_descriptions.txt</p>
+              <div className="flex gap-2 mt-4 justify-center">
+                <Button variant="outline" size="sm" className="text-[10px]">
+                  <Upload className="w-3 h-3 mr-1" /> Load expanded.txt
+                </Button>
+                <Button variant="outline" size="sm" className="text-[10px]">
+                  <Upload className="w-3 h-3 mr-1" /> Load campaign_descriptions.txt
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="misc" className="space-y-4">
+            <div className="text-center py-8 text-slate-400">
+              <Settings className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-semibold">Miscellaneous Files</p>
+              <p className="text-xs mt-1">Edit descr_offmap_models.txt and other minor files</p>
+              <Button variant="outline" size="sm" className="mt-4 text-[10px]">
+                <Upload className="w-3 h-3 mr-1" /> Load descr_offmap_models.txt
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
 
       </div>
     </ScrollArea>);
@@ -577,7 +633,11 @@ export default function FactionsEditor() {
     setSelectedIdx(updated.length - 1);
   };
 
-  const duplicateFaction = (i) => {
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateSourceIdx, setDuplicateSourceIdx] = useState(null);
+  const [duplicateName, setDuplicateName] = useState('');
+
+  const openDuplicateModal = (i) => {
     const src = factions[i];
     const baseName = src.name.replace(/_\d+$/, '');
     let newName = `${baseName}_copy`;
@@ -585,14 +645,22 @@ export default function FactionsEditor() {
     while (factions.some((f) => f.name === newName)) {
       newName = `${baseName}_copy${++counter}`;
     }
-    const nameUpper = newName.toUpperCase();
+    setDuplicateName(newName);
+    setDuplicateSourceIdx(i);
+    setDuplicateModalOpen(true);
+  };
+
+  const confirmDuplicate = () => {
+    if (!duplicateName.trim() || duplicateSourceIdx === null) return;
+    const src = factions[duplicateSourceIdx];
+    const nameUpper = duplicateName.toUpperCase();
     const dup = {
       ...src,
-      name: newName,
+      name: duplicateName.trim(),
       spawn_type: 'default',
       shadow_faction: '',
-      symbol: `models_strat/symbol_${newName}.CAS`,
-      loading_logo: `loading_screen/symbols/symbol128_${newName}.tga`,
+      symbol: `models_strat/symbol_${duplicateName.trim()}.CAS`,
+      loading_logo: `loading_screen/symbols/symbol128_${duplicateName.trim()}.tga`,
       logo_index: `FACTION_LOGO_${nameUpper}`,
       small_logo_index: `SMALL_FACTION_LOGO_${nameUpper}`,
       standard_index: 0,
@@ -601,6 +669,22 @@ export default function FactionsEditor() {
     const updated = [...factions, dup];
     setFactions(updated);
     setSelectedIdx(updated.length - 1);
+    setDuplicateModalOpen(false);
+    setDuplicateSourceIdx(null);
+    setDuplicateName('');
+  };
+
+  const onDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(factions);
+    const [reordered] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reordered);
+    setFactions(items);
+    try { localStorage.setItem(LS_KEY, serialiseDescrSmFactions(items)); } catch {}
+    if (selectedIdx !== null) {
+      const newIdx = items.findIndex(f => f.name === factions[selectedIdx].name);
+      setSelectedIdx(newIdx >= 0 ? newIdx : null);
+    }
   };
 
   const deleteFaction = (i) => {
@@ -680,27 +764,51 @@ export default function FactionsEditor() {
               </Button>
             </div>
             <ScrollArea className="flex-1 max-h-[calc(100vh-120px)]">
-              {filtered.map(({ f, i }) =>
-            <div key={i} className={`w-full flex items-center gap-2 px-3 py-2 border-b border-border/60 ${selectedIdx === i ? 'bg-accent' : 'hover:bg-accent'}`}>
-                  <button onClick={() => setSelectedIdx(i)} className="flex items-center gap-2 flex-1 text-left">
-                    <div className="flex gap-1 shrink-0">
-                      <div className="w-3 h-3 rounded-sm border border-slate-600" style={{ background: rgbToHex(f.primary_colour) }} />
-                      <div className="w-3 h-3 rounded-sm border border-slate-600" style={{ background: rgbToHex(f.secondary_colour) }} />
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="factions">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef}>
+                      {filtered.map(({ f, i }, index) => {
+                        const originalIdx = factions.findIndex(faction => faction.name === f.name);
+                        return (
+                          <Draggable key={f.name} draggableId={f.name} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`w-full flex items-center gap-2 px-3 py-2 border-b border-border/60 ${selectedIdx === originalIdx ? 'bg-accent' : 'hover:bg-accent'} ${snapshot.isDragging ? 'bg-accent shadow-lg' : ''}`}
+                                style={{ ...provided.draggableProps.style }}
+                              >
+                                <div {...provided.dragHandleProps} className="cursor-grab text-slate-500 hover:text-slate-300">
+                                  <GripVertical className="w-3 h-3" />
+                                </div>
+                                <button onClick={() => setSelectedIdx(originalIdx)} className="flex items-center gap-2 flex-1 text-left">
+                                  <div className="flex gap-1 shrink-0">
+                                    <div className="w-3 h-3 rounded-sm border border-slate-600" style={{ background: rgbToHex(f.primary_colour) }} />
+                                    <div className="w-3 h-3 rounded-sm border border-slate-600" style={{ background: rgbToHex(f.secondary_colour) }} />
+                                  </div>
+                                  <span className="flex-1 text-[11px] font-mono truncate text-slate-100">{f.name}</span>
+                                </button>
+                                <div className="flex gap-1 shrink-0">
+                                  <button onClick={(e) => {e.stopPropagation();openDuplicateModal(originalIdx);}}
+                              className="text-blue-300 hover:text-blue-200 p-1" title="Duplicate">
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                  <button onClick={(e) => {e.stopPropagation();deleteFaction(originalIdx);}}
+                              className="text-red-400 hover:text-red-300 p-1" title="Delete">
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
                     </div>
-                    <span className="flex-1 text-[11px] font-mono truncate text-slate-100">{f.name}</span>
-                  </button>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={(e) => {e.stopPropagation();duplicateFaction(i);}}
-                className="text-blue-300 hover:text-blue-200 p-1" title="Duplicate">
-                      <Copy className="w-3 h-3" />
-                    </button>
-                    <button onClick={(e) => {e.stopPropagation();deleteFaction(i);}}
-                className="text-red-400 hover:text-red-300 p-1" title="Delete">
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-            )}
+                  )}
+                </Droppable>
+              </DragDropContext>
             </ScrollArea>
           </div>
 
@@ -724,6 +832,32 @@ export default function FactionsEditor() {
           </div>
         </div>
       }
+
+      {/* Duplicate Modal */}
+      <Dialog open={duplicateModalOpen} onOpenChange={setDuplicateModalOpen}>
+        <DialogContent className="bg-slate-900 border-slate-600">
+          <DialogHeader>
+            <DialogTitle className="text-slate-200">Duplicate Faction</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-[10px] text-slate-300 block mb-2">New Faction Name</label>
+            <Input
+              value={duplicateName}
+              onChange={(e) => setDuplicateName(e.target.value)}
+              placeholder="e.g. mongols_copy"
+              className="h-8 text-[11px] px-2 bg-slate-700 border-slate-600 text-slate-100"
+              onKeyDown={(e) => e.key === 'Enter' && confirmDuplicate()}
+            />
+            <p className="text-[9px] text-slate-400 mt-2">
+              Symbol, logo indices, and other paths will be auto-generated based on this name.
+            </p>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setDuplicateModalOpen(false)} className="px-3 py-1.5 text-[10px] rounded border border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</button>
+            <button onClick={confirmDuplicate} className="px-3 py-1.5 text-[10px] rounded bg-blue-700 hover:bg-blue-600 text-white font-semibold">Duplicate</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>);
 
 }
