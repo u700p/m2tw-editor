@@ -775,7 +775,7 @@ export default function FactionsEditor() {
       console.error('Failed to copy banners:', err);
     }
     
-    // Generate strings.bin entries for the new faction
+    // Duplicate strings.bin entries from source faction
     try {
       const globalStringsRaw = localStorage.getItem('m2tw_strings_bin_global');
       let allStrings = [];
@@ -783,80 +783,75 @@ export default function FactionsEditor() {
         try { allStrings = JSON.parse(globalStringsRaw); } catch { allStrings = []; }
       }
       
+      const srcNameUpper = src.name.toUpperCase();
       const adj = adjective.trim() || newFactionName;
-      const leaderT = leaderTitle.trim();
-      const heirT = heirTitle.trim();
+      const leaderT = leaderTitle.trim() || 'Faction Leader';
+      const heirT = heirTitle.trim() || 'Faction Heir';
       const displayN = displayName.trim() || newFactionName;
       
-      const newEntries = [
-        { key: `{${nameUpper}}`, value: displayN },
-        { key: `{EMT_${nameUpper}_SPY}`, value: `${adj} Spy` },
-        { key: `{EMT_${nameUpper}_ASSASSIN}`, value: `${adj} Assassin` },
-        { key: `{EMT_${nameUpper}_DIPLOMAT}`, value: `${adj} Diplomat` },
-        { key: `{EMT_${nameUpper}_ADMIRAL}`, value: `${adj} Navy` },
-        { key: `{EMT_${nameUpper}_GENERAL}`, value: `${adj} Army` },
-        { key: `{EMT_${nameUpper}_NAMED_CHARACTER}`, value: `${adj} Family Member` },
-        { key: `{EMT_${nameUpper}_NAMED_GENERAL}`, value: `${adj} General` },
-        { key: `{EMT_${nameUpper}_PRINCESS}`, value: `${adj} Princess` },
-        { key: `{EMT_${nameUpper}_MERCHANT}`, value: `${adj} Merchant` },
-        { key: `{EMT_${nameUpper}_PRIEST}`, value: `${adj} Priest` },
-        { key: `{EMT_${nameUpper}_PRIEST_1}`, value: `${adj} Bishop` },
-        { key: `{EMT_${nameUpper}_PRIEST_2}`, value: `${adj} Cardinal` },
-        { key: `{EMT_${nameUpper}_VILLAGE}`, value: `${adj} Village` },
-        { key: `{EMT_${nameUpper}_TOWN}`, value: `${adj} Town` },
-        { key: `{EMT_${nameUpper}_LARGE_TOWN}`, value: `${adj} Large Town` },
-        { key: `{EMT_${nameUpper}_CITY}`, value: `${adj} City` },
-        { key: `{EMT_${nameUpper}_LARGE_CITY}`, value: `${adj} Large City` },
-        { key: `{EMT_${nameUpper}_HUGE_CITY}`, value: `${adj} Huge City` },
-        { key: `{EMT_${nameUpper}_WOODEN_CASTLE}`, value: `${adj} Motte and Bailey` },
-        { key: `{EMT_${nameUpper}_STONE_KEEP}`, value: `${adj} Wooden Castle` },
-        { key: `{EMT_${nameUpper}_CASTLE}`, value: `${adj} Castle` },
-        { key: `{EMT_${nameUpper}_LARGE_CASTLE}`, value: `${adj} Fortress` },
-        { key: `{EMT_${nameUpper}_FORTRESS}`, value: `${adj} Citadel` },
-        { key: `{EMT_${nameUpper}_STAR_FORT}`, value: `${adj} Star Fort` },
-        { key: `{EMT_${nameUpper}_CAPITAL}`, value: `${adj} Capital` },
-        { key: `{EMT_${nameUpper}_FORT}`, value: `${adj} Fort` },
-        { key: `{EMT_${nameUpper}_PORT}`, value: `${adj} Port` },
-        { key: `{EMT_${nameUpper}_DOCK}`, value: `${adj} Docks` },
-        { key: `{EMT_${nameUpper}_FISHING_VILLAGE}`, value: `${adj} Fishing Village` },
-        { key: `{EMT_${nameUpper}_WATCHTOWER}`, value: `${adj} Watchtower` },
-        { key: `{EMT_${nameUpper}_FACTION_LEADER}`, value: `${adj} Faction Leader` },
-        { key: `{EMT_${nameUpper}_FACTION_HEIR}`, value: `${adj} Faction Heir` },
-        { key: `{EMT_${nameUpper}_FACTION_LEADER_TITLE}`, value: leaderT || 'Faction Leader' },
-        { key: `{EMT_${nameUpper}_FACTION_HEIR_TITLE}`, value: heirT || 'Faction Heir' },
-        { key: `{EMT_${nameUpper}_FACTION_LEADER_NAME}`, value: `${leaderT || 'Faction Leader'} %S` },
-        { key: `{EMT_${nameUpper}_FACTION_HEIR_NAME}`, value: `${heirT || 'Faction Heir'} %S` },
-        { key: `{EMT_${nameUpper}_FORMER_FACTION_LEADER_TITLE}`, value: leaderT || 'Faction Leader' },
-        { key: `{EMT_YOUR_FORCES_ATTACK_ARMY_${nameUpper}}`, value: `Your forces attack a ${adj} army` },
-        { key: `{EMT_YOUR_FORCES_ATTACK_NAVY_${nameUpper}}`, value: `Your forces attack a ${adj} navy` },
-        { key: `{EMT_YOUR_FORCES_AMBUSH_ARMY_${nameUpper}}`, value: `Your forces ambush a ${adj} army` },
-        { key: `{EMT_YOUR_FORCES_ATTACKED_ARMY_${nameUpper}}`, value: `Your forces are attacked by a ${adj} army` },
-        { key: `{EMT_YOUR_FORCES_ATTACKED_NAVY_${nameUpper}}`, value: `Your forces are attacked by a ${adj} navy` },
-        { key: `{EMT_YOUR_FORCES_AMBUSHED_ARMY_${nameUpper}}`, value: `Your forces are ambushed by a ${adj} army` },
-        { key: `{EMT_VICTORY_${nameUpper}}`, value: `The ${displayN} won!` }
-      ];
+      // Find and duplicate source faction's string entries
+      const srcEntries = allStrings.filter(entry => {
+        const keyUpper = entry.key.toUpperCase();
+        return keyUpper.includes(srcNameUpper);
+      });
       
-      if (strengths.trim()) {
-        newEntries.push({ key: `{${nameUpper}_STRENGTH}`, value: strengths });
-      }
-      if (weaknesses.trim()) {
-        newEntries.push({ key: `{${nameUpper}_WEAKNESS}`, value: weaknesses });
-      }
-      if (customUnit.trim()) {
-        newEntries.push({ key: `{${nameUpper}_UNIT}`, value: customUnit });
-      }
+      // Create new entries by replacing source faction name with new faction name
+      const newEntries = srcEntries.map(entry => {
+        const newKey = entry.key.replace(new RegExp(srcNameUpper, 'g'), nameUpper);
+        let newValue = entry.value;
+        
+        // Apply user's custom edits to specific keys
+        const keySuffix = newKey.replace(`{EMT_${nameUpper}_`, '').replace('{', '').replace('}', '');
+        
+        // Replace faction display name
+        if (newKey === `{${nameUpper}}`) {
+          newValue = displayN;
+        }
+        // Replace adjective-based values (character types, settlements, etc.)
+        else if (newValue.includes(src.name) || newValue.includes(srcNameUpper.toLowerCase())) {
+          newValue = newValue
+            .replace(new RegExp(src.name, 'gi'), newFactionName)
+            .replace(new RegExp(srcNameUpper.toLowerCase(), 'gi'), adj.toLowerCase());
+        }
+        // Replace leader/heir titles if user provided custom ones
+        else if (newKey === `{EMT_${nameUpper}_FACTION_LEADER_TITLE}` && leaderTitle.trim()) {
+          newValue = leaderT;
+        }
+        else if (newKey === `{EMT_${nameUpper}_FACTION_HEIR_TITLE}` && heirTitle.trim()) {
+          newValue = heirT;
+        }
+        else if (newKey === `{EMT_${nameUpper}_FACTION_LEADER_NAME}` && leaderTitle.trim()) {
+          newValue = `${leaderT} %S`;
+        }
+        else if (newKey === `{EMT_${nameUpper}_FACTION_HEIR_NAME}` && heirTitle.trim()) {
+          newValue = `${heirT} %S`;
+        }
+        // Replace strengths/weaknesses/custom unit if provided
+        else if (newKey === `{${nameUpper}_STRENGTH}` && strengths.trim()) {
+          newValue = strengths.trim();
+        }
+        else if (newKey === `{${nameUpper}_WEAKNESS}` && weaknesses.trim()) {
+          newValue = weaknesses.trim();
+        }
+        else if (newKey === `{${nameUpper}_UNIT}` && customUnit.trim()) {
+          newValue = customUnit.trim();
+        }
+        
+        return { key: newKey, value: newValue };
+      });
       
-      // Remove any existing entries for this faction name
+      // Remove any existing entries for this new faction name
       const filtered = allStrings.filter(entry => {
         const keyUpper = entry.key.toUpperCase();
         return !keyUpper.includes(nameUpper);
       });
       
+      // Add the duplicated entries
       const updated = [...filtered, ...newEntries];
       localStorage.setItem('m2tw_strings_bin_global', JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent('strings-bin-updated'));
     } catch (err) {
-      console.error('Failed to generate strings:', err);
+      console.error('Failed to duplicate strings:', err);
     }
     
     setDuplicateModalOpen(false);
