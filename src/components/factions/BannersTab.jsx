@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Download, FileText, Plus, Trash2 } from 'lucide-react';
+import { Upload, Download, FileText, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { parseBannersXml, serialiseBannersXml } from '@/components/minorfiles/banners/bannersParser';
@@ -46,16 +46,18 @@ export default function BannersTab({ factionName }) {
     localStorage.setItem(`m2tw_banners_${factionName}`, text);
   };
 
-  const addFactionTexture = (bannerIdx) => {
+  const updateMeshTexture = (section, bannerIdx, textureIdx, field, value) => {
     if (!parsedData) return;
     const updated = { ...parsedData };
-    updated.factionBanners = updated.factionBanners.map((b, i) => {
-      if (i !== bannerIdx) return b;
-      return {
-        ...b,
-        textures: [...b.textures, { faction: factionName, diffuseMap: '', translucencyMap: '' }]
-      };
-    });
+    const banners = updated[section];
+    const banner = Array.isArray(banners) ? banners[bannerIdx] : banners;
+    
+    if (banner) {
+      banner.meshesAndTextures = banner.meshesAndTextures.map((m, i) =>
+        i === textureIdx ? { ...m, [field]: value } : m
+      );
+    }
+    
     setParsedData(updated);
     const text = serialiseBannersXml(updated);
     setBannersData(text);
@@ -69,6 +71,26 @@ export default function BannersTab({ factionName }) {
       if (i !== bannerIdx) return b;
       return { ...b, textures: b.textures.filter((_, j) => j !== textureIdx) };
     });
+    setParsedData(updated);
+    const text = serialiseBannersXml(updated);
+    setBannersData(text);
+    localStorage.setItem(`m2tw_banners_${factionName}`, text);
+  };
+
+  const removeMeshTexture = (section, bannerIdx, textureIdx) => {
+    if (!parsedData) return;
+    const updated = { ...parsedData };
+    const banners = updated[section];
+    
+    if (Array.isArray(banners)) {
+      const banner = banners[bannerIdx];
+      if (banner) {
+        banner.meshesAndTextures = banner.meshesAndTextures.filter((_, i) => i !== textureIdx);
+      }
+    } else {
+      banners.meshesAndTextures = banners.meshesAndTextures.filter((_, i) => i !== textureIdx);
+    }
+    
     setParsedData(updated);
     const text = serialiseBannersXml(updated);
     setBannersData(text);
@@ -157,64 +179,6 @@ export default function BannersTab({ factionName }) {
     });
   }
 
-  const updateMeshTexture = (section, bannerIdx, textureIdx, field, value) => {
-    if (!parsedData) return;
-    const updated = { ...parsedData };
-    const banners = updated[section];
-    const banner = Array.isArray(banners) ? banners[bannerIdx] : banners;
-    
-    if (banner) {
-      banner.meshesAndTextures = banner.meshesAndTextures.map((m, i) =>
-        i === textureIdx ? { ...m, [field]: value } : m
-      );
-    }
-    
-    setParsedData(updated);
-    const text = serialiseBannersXml(updated);
-    setBannersData(text);
-    localStorage.setItem(`m2tw_banners_${factionName}`, text);
-  };
-
-  const addMeshTexture = (section, bannerIdx = 0) => {
-    if (!parsedData) return;
-    const updated = { ...parsedData };
-    const banners = updated[section];
-    
-    if (Array.isArray(banners)) {
-      const banner = banners[bannerIdx];
-      if (banner) {
-        banner.meshesAndTextures = [...banner.meshesAndTextures, { faction: factionName, mesh: '', diffuseMap: '', translucencyMap: '' }];
-      }
-    } else {
-      banners.meshesAndTextures = [...banners.meshesAndTextures, { faction: factionName, mesh: '', diffuseMap: '', translucencyMap: '' }];
-    }
-    
-    setParsedData(updated);
-    const text = serialiseBannersXml(updated);
-    setBannersData(text);
-    localStorage.setItem(`m2tw_banners_${factionName}`, text);
-  };
-
-  const removeMeshTexture = (section, bannerIdx, textureIdx) => {
-    if (!parsedData) return;
-    const updated = { ...parsedData };
-    const banners = updated[section];
-    
-    if (Array.isArray(banners)) {
-      const banner = banners[bannerIdx];
-      if (banner) {
-        banner.meshesAndTextures = banner.meshesAndTextures.filter((_, i) => i !== textureIdx);
-      }
-    } else {
-      banners.meshesAndTextures = banners.meshesAndTextures.filter((_, i) => i !== textureIdx);
-    }
-    
-    setParsedData(updated);
-    const text = serialiseBannersXml(updated);
-    setBannersData(text);
-    localStorage.setItem(`m2tw_banners_${factionName}`, text);
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between border-b border-slate-600 pb-2">
@@ -236,120 +200,73 @@ export default function BannersTab({ factionName }) {
       </div>
 
       {parsedData ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {textureEntries.length === 0 ? (
             <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-700 rounded-lg">
               <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No texture entries for {factionName}</p>
-              <p className="text-xs mt-1">Use "Add Entry" buttons below to add texture paths</p>
+              <p className="text-xs mt-1">Load a banners XML file that contains entries for this faction</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {textureEntries.map((entry, idx) => (
-                <div key={idx} className="border border-slate-600 rounded p-3 bg-slate-800/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-semibold">
-                        {entry.sectionLabel}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-300">{entry.bannerName}</span>
-                    </div>
-                    <button
-                      onClick={() => entry.section === 'factionBanners' 
-                        ? removeFactionTexture(entry.bannerIdx, entry.textureIdx)
-                        : removeMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx)
-                      }
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+            textureEntries.map((entry, idx) => (
+              <div key={idx} className="border border-slate-600 rounded p-3 bg-slate-800/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-semibold">
+                      {entry.sectionLabel}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-300">{entry.bannerName}</span>
                   </div>
-                  <div className="space-y-2">
-                    {entry.hasMesh && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-400 w-20">Mesh:</span>
-                        <Input
-                          className="h-7 text-[10px] bg-slate-700 border-slate-600 text-slate-200 font-mono flex-1"
-                          value={entry.texture.mesh || ''}
-                          onChange={(e) => updateMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx, 'mesh', e.target.value)}
-                          placeholder="path/to/mesh.cas"
-                        />
-                      </div>
-                    )}
+                  <button
+                    onClick={() => entry.section === 'factionBanners' 
+                      ? removeFactionTexture(entry.bannerIdx, entry.textureIdx)
+                      : removeMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx)
+                    }
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {entry.hasMesh && (
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 w-20">Diffuse Map:</span>
+                      <span className="text-[10px] text-slate-400 w-20">Mesh:</span>
                       <Input
                         className="h-7 text-[10px] bg-slate-700 border-slate-600 text-slate-200 font-mono flex-1"
-                        value={entry.texture.diffuseMap}
-                        onChange={(e) => entry.section === 'factionBanners'
-                          ? updateFactionTexture(entry.bannerIdx, entry.textureIdx, 'diffuseMap', e.target.value)
-                          : updateMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx, 'diffuseMap', e.target.value)
-                        }
-                        placeholder="path/to/texture.tga"
+                        value={entry.texture.mesh || ''}
+                        onChange={(e) => updateMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx, 'mesh', e.target.value)}
+                        placeholder="path/to/mesh.cas"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 w-20">Translucency Map:</span>
-                      <Input
-                        className="h-7 text-[10px] bg-slate-700 border-slate-600 text-slate-200 font-mono flex-1"
-                        value={entry.texture.translucencyMap}
-                        onChange={(e) => entry.section === 'factionBanners'
-                          ? updateFactionTexture(entry.bannerIdx, entry.textureIdx, 'translucencyMap', e.target.value)
-                          : updateMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx, 'translucencyMap', e.target.value)
-                        }
-                        placeholder="path/to/translucency.tga"
-                      />
-                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 w-20">Diffuse Map:</span>
+                    <Input
+                      className="h-7 text-[10px] bg-slate-700 border-slate-600 text-slate-200 font-mono flex-1"
+                      value={entry.texture.diffuseMap}
+                      onChange={(e) => entry.section === 'factionBanners'
+                        ? updateFactionTexture(entry.bannerIdx, entry.textureIdx, 'diffuseMap', e.target.value)
+                        : updateMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx, 'diffuseMap', e.target.value)
+                      }
+                      placeholder="path/to/texture.tga"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 w-20">Translucency Map:</span>
+                    <Input
+                      className="h-7 text-[10px] bg-slate-700 border-slate-600 text-slate-200 font-mono flex-1"
+                      value={entry.texture.translucencyMap}
+                      onChange={(e) => entry.section === 'factionBanners'
+                        ? updateFactionTexture(entry.bannerIdx, entry.textureIdx, 'translucencyMap', e.target.value)
+                        : updateMeshTexture(entry.section, entry.bannerIdx, entry.textureIdx, 'translucencyMap', e.target.value)
+                      }
+                      placeholder="path/to/translucency.tga"
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
-
-          <div className="border-t border-slate-600 pt-3 space-y-2">
-            <p className="text-[10px] text-slate-400 font-semibold mb-2">Add New Entries:</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[10px]"
-                onClick={() => {
-                  const firstBanner = parsedData.factionBanners[0];
-                  if (firstBanner) addFactionTexture(0);
-                  else if (parsedData.factionBanners.length === 0) {
-                    // No faction banners exist, user needs to load a proper file
-                    alert('No faction banners in file. Load a complete descr_banners_new.xml first.');
-                  }
-                }}
-              >
-                <Plus className="w-3 h-3 mr-1" /> Faction Banner Entry
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[10px]"
-                onClick={() => addMeshTexture('holyBanners', 0)}
-              >
-                <Plus className="w-3 h-3 mr-1" /> Holy Banner Entry
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[10px]"
-                onClick={() => addMeshTexture('unitBanners', 0)}
-              >
-                <Plus className="w-3 h-3 mr-1" /> Unit Banner Entry
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[10px]"
-                onClick={() => addMeshTexture('royalBanner', 0)}
-              >
-                <Plus className="w-3 h-3 mr-1" /> Royal Banner Entry
-              </Button>
-            </div>
-          </div>
         </div>
       ) : (
         <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-700 rounded-lg">
