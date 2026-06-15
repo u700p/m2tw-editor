@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Shield, Save, ChevronRight, Loader2, Plus, Upload, CheckCircle2 } from 'lucide-react';
 
@@ -266,7 +266,7 @@ export default function FactionsEditor() {
   const [importing, setImporting] = useState(false);
   const [importDone, setImportDone] = useState(false);
 
-  const fileLoaded = !!(() => { try { return localStorage.getItem('m2tw_factions_file'); } catch { return null; } })();
+  const fileInputRef = useRef();
 
   useEffect(() => {
     base44.entities.Faction.list().then(data => {
@@ -275,18 +275,14 @@ export default function FactionsEditor() {
     });
   }, []);
 
-  const handleImportFromFile = async () => {
-    const raw = (() => { try { return localStorage.getItem('m2tw_factions_file'); } catch { return null; } })();
-    if (!raw) return;
+  const handleImportFromFile = async (text) => {
+    if (!text) return;
     setImporting(true);
     setImportDone(false);
     try {
-      const parsed = parseDescrSmFactions(raw);
-      // Delete all existing factions then bulk-create
+      const parsed = parseDescrSmFactions(text);
       const existing = await base44.entities.Faction.list();
-      for (const f of existing) {
-        await base44.entities.Faction.delete(f.id);
-      }
+      for (const f of existing) await base44.entities.Faction.delete(f.id);
       const created = await base44.entities.Faction.bulkCreate(parsed);
       setFactions(Array.isArray(created) ? created : parsed);
       setSelected(null);
@@ -294,6 +290,15 @@ export default function FactionsEditor() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleFileInput = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    try { localStorage.setItem('m2tw_factions_file', text); } catch {}
+    await handleImportFromFile(text);
+    e.target.value = '';
   };
 
   const filtered = factions.filter(f =>
@@ -313,14 +318,14 @@ export default function FactionsEditor() {
         <span className="text-[10px] text-slate-500 ml-1">({factions.length} factions)</span>
         <div className="ml-auto flex items-center gap-2">
           {importDone && <span className="flex items-center gap-1 text-[10px] text-green-400"><CheckCircle2 className="w-3 h-3" /> Imported</span>}
+          <input ref={fileInputRef} type="file" accept=".txt" className="hidden" onChange={handleFileInput} />
           <button
-            onClick={handleImportFromFile}
-            disabled={!fileLoaded || importing}
-            title={fileLoaded ? 'Import factions from loaded descr_sm_factions.txt' : 'Load descr_sm_factions.txt on Home first'}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-semibold border transition-colors bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {importing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-            Import from descr_sm_factions.txt
+            Import descr_sm_factions.txt
           </button>
         </div>
       </div>
