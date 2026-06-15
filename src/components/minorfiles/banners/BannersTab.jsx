@@ -10,17 +10,39 @@ const STORAGE_KEY = 'm2tw_banners_file';
 
 // ── Small helpers ────────────────────────────────────────────────────────────
 
+function TexturePreviewModal({ path, url, onClose }) {
+  if (!url) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-600 rounded-lg p-4 max-w-lg w-full mx-4 shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] font-mono text-amber-400 truncate flex-1 mr-2">{path}</span>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">✕</button>
+        </div>
+        <img src={url} alt={path} className="w-full max-h-96 object-contain rounded border border-slate-700 bg-slate-800" />
+      </div>
+    </div>
+  );
+}
+
 function TextureThumb({ path }) {
   const url = getTexturePreview(path);
   const [ok, setOk] = useState(true);
-  if (!url) return <span className="w-5 h-5 shrink-0" />;
-  return ok ? (
-    <img src={url} alt="" title={path}
-      onError={() => setOk(false)}
-      className="w-5 h-5 object-contain rounded shrink-0 border border-slate-600 bg-slate-800 cursor-pointer"
-      onClick={() => window.open(url, '_blank')} />
-  ) : (
-    <span className="w-5 h-5 shrink-0 rounded border border-slate-700 bg-slate-800 flex items-center justify-center text-[7px] text-slate-500" title="No preview">?</span>
+  const [open, setOpen] = useState(false);
+  if (!url) return <span className="w-8 h-8 shrink-0" />;
+  return (
+    <>
+      {ok ? (
+        <img src={url} alt="" title={path}
+          onError={() => setOk(false)}
+          className="w-8 h-8 object-contain rounded shrink-0 border border-slate-600 bg-slate-800 cursor-pointer hover:border-violet-400 transition-colors"
+          onClick={() => setOpen(true)} />
+      ) : (
+        <span className="w-8 h-8 shrink-0 rounded border border-slate-700 bg-slate-800 flex items-center justify-center text-[7px] text-slate-500" title="No preview">?</span>
+      )}
+      {open && <TexturePreviewModal path={path} url={url} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -28,8 +50,8 @@ function TexRow({ t, onChange, onDelete, onDuplicate, showMesh, texCount }) {
   const diffUrl = getTexturePreview(t.diffuseMap);
   const transUrl = getTexturePreview(t.translucencyMap);
   const cols = showMesh
-    ? `20px 1fr 1fr 1fr 1fr 20px 20px auto auto`
-    : `20px 1fr 1fr 1fr 20px 20px auto auto`;
+    ? `20px 1fr 1fr 1fr 1fr 32px 32px auto auto`
+    : `20px 1fr 1fr 1fr 32px 32px auto auto`;
   return (
     <div className="grid items-center gap-1 py-0.5 border-b border-slate-800 last:border-0 text-[10px] group"
       style={{ gridTemplateColumns: cols }}>
@@ -61,8 +83,8 @@ function TexRow({ t, onChange, onDelete, onDuplicate, showMesh, texCount }) {
 
 function TexHeader({ showMesh }) {
   const cols = showMesh
-    ? `20px 1fr 1fr 1fr 1fr 20px 20px auto auto`
-    : `20px 1fr 1fr 1fr 20px 20px auto auto`;
+    ? `20px 1fr 1fr 1fr 1fr 32px 32px auto auto`
+    : `20px 1fr 1fr 1fr 32px 32px auto auto`;
   return (
     <div className="grid gap-1 pb-0.5 mb-1 border-b border-slate-700 text-[9px] text-slate-500 font-mono"
       style={{ gridTemplateColumns: cols }}>
