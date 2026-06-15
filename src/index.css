@@ -40,38 +40,42 @@
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /* Unified slate-tinted dark background — matches the hardcoded slate-900/slate-800 used throughout */
+    --background: 222 14% 10%;
+    --foreground: 210 20% 94%;
+    --card: 222 14% 12%;
+    --card-foreground: 210 20% 94%;
+    --popover: 222 14% 10%;
+    --popover-foreground: 210 20% 94%;
+    /* Primary stays near-white so active states remain bright */
+    --primary: 210 20% 94%;
+    --primary-foreground: 222 14% 10%;
+    /* Secondary / muted — slightly lighter slate panel tone */
+    --secondary: 222 14% 18%;
+    --secondary-foreground: 210 20% 88%;
+    --muted: 222 14% 16%;
+    --muted-foreground: 215 14% 55%;
+    --accent: 222 14% 20%;
+    --accent-foreground: 210 20% 94%;
+    --destructive: 0 62.8% 40%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
+    /* Borders more visible — was 14.9% pure-grey, now slate-tinted 20% */
+    --border: 220 13% 22%;
+    --input: 220 13% 20%;
+    --ring: 215 20% 65%;
+    --chart-1: 220 70% 55%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 222 14% 9%;
+    --sidebar-foreground: 210 20% 88%;
+    --sidebar-primary: 224 76% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 222 14% 16%;
+    --sidebar-accent-foreground: 210 20% 88%;
+    --sidebar-border: 220 13% 20%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -99,4 +103,20 @@
 .dark select,
 .dark textarea {
   color: hsl(var(--foreground));
+}
+
+/* Make ghost/outline buttons always readable, not just on hover */
+.dark button[class*="border-slate-6"],
+.dark button[class*="text-slate-4"],
+.dark button[class*="text-slate-5"] {
+  opacity: 1;
+}
+
+/* Subtle opacity-0 group-hover buttons — give them a minimum baseline visibility */
+.dark .group button.opacity-0 {
+  opacity: 0.15;
+}
+.dark .group:hover button.opacity-0,
+.dark .group button.opacity-0:hover {
+  opacity: 1;
 }
