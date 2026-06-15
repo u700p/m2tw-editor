@@ -35,7 +35,7 @@ export default function DescriptionsTab({ factionName }) {
     const blob = new Blob([buffer], { type: 'application/octet-stream' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'strings.bin';
+    a.download = 'expanded.txt.strings.bin';
     a.click();
   };
 
@@ -58,20 +58,28 @@ export default function DescriptionsTab({ factionName }) {
 
   useEffect(() => {
     // Load global strings.bin data
-    try {
-      const stored = localStorage.getItem(GLOBAL_STRINGS_KEY);
-      if (stored) {
-        const { entries, magic1, magic2 } = JSON.parse(stored);
-        setAllEntries(entries);
-        setMagicValues({ magic1, magic2 });
-        // Filter entries for current faction
-        const factionUpper = factionName.toUpperCase();
-        const filtered = entries.filter(entry => 
-          entry.key && entry.key.toUpperCase().includes(factionUpper)
-        );
-        setStringsBinEntries(filtered);
-      }
-    } catch {}
+    const loadStrings = () => {
+      try {
+        const stored = localStorage.getItem(GLOBAL_STRINGS_KEY);
+        if (stored) {
+          const { entries, magic1, magic2 } = JSON.parse(stored);
+          setAllEntries(entries);
+          setMagicValues({ magic1, magic2 });
+          // Filter entries for current faction
+          const factionUpper = factionName.toUpperCase();
+          const filtered = entries.filter(entry => 
+            entry.key && entry.key.toUpperCase().includes(factionUpper)
+          );
+          setStringsBinEntries(filtered);
+        }
+      } catch {}
+    };
+    
+    loadStrings();
+    
+    // Listen for updates from other editors
+    window.addEventListener('strings-bin-updated', loadStrings);
+    return () => window.removeEventListener('strings-bin-updated', loadStrings);
   }, [factionName]);
 
   return (

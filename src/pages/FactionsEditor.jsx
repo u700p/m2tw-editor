@@ -777,10 +777,20 @@ export default function FactionsEditor() {
     
     // Duplicate strings.bin entries from source faction
     try {
-      const globalStringsRaw = localStorage.getItem('m2tw_strings_bin_global');
-      let allStrings = [];
-      if (globalStringsRaw) {
-        try { allStrings = JSON.parse(globalStringsRaw); } catch { allStrings = []; }
+      const storedData = localStorage.getItem('m2tw_strings_bin_global');
+      let storedEntries = [];
+      let magic1 = 2;
+      let magic2 = 2048;
+      
+      if (storedData) {
+        try {
+          const parsed = JSON.parse(storedData);
+          storedEntries = parsed.entries || parsed;
+          magic1 = parsed.magic1 || 2;
+          magic2 = parsed.magic2 || 2048;
+        } catch {
+          storedEntries = [];
+        }
       }
       
       const srcNameUpper = src.name.toUpperCase();
@@ -788,7 +798,7 @@ export default function FactionsEditor() {
       const newFactionLower = newFactionName.toLowerCase();
       
       // Find all source faction's string entries
-      const srcEntries = allStrings.filter(entry => {
+      const srcEntries = storedEntries.filter(entry => {
         const keyUpper = entry.key.toUpperCase();
         return keyUpper.includes(srcNameUpper);
       });
@@ -836,14 +846,18 @@ export default function FactionsEditor() {
       });
       
       // Remove any existing entries for this new faction name
-      const filtered = allStrings.filter(entry => {
+      const filtered = storedEntries.filter(entry => {
         const keyUpper = entry.key.toUpperCase();
         return !keyUpper.includes(nameUpper);
       });
       
-      // Add the duplicated entries
+      // Add the duplicated entries and save with proper structure
       const updated = [...filtered, ...newEntries];
-      localStorage.setItem('m2tw_strings_bin_global', JSON.stringify(updated));
+      localStorage.setItem('m2tw_strings_bin_global', JSON.stringify({
+        entries: updated,
+        magic1,
+        magic2
+      }));
       window.dispatchEvent(new CustomEvent('strings-bin-updated'));
     } catch (err) {
       console.error('Failed to duplicate strings:', err);
