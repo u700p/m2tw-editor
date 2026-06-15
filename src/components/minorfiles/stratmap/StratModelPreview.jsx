@@ -9,7 +9,7 @@ import { parseMs3d } from '@/lib/casCodec';
 import { parseMs3d as parseMs3dFull } from '@/lib/ms3dCodec';
 import ModelViewer from '@/components/assets/ModelViewer';
 import { decodeTgaToDataUrl } from '@/components/shared/tgaDecoder';
-import { extractDdsFromTexture, decodeDds } from '@/lib/textureCodec';
+import { extractDdsFromTexture, ddsToImageData } from '@/lib/textureCodec';
 
 /** Decode an uploaded texture file (tga/dds/texture/png) → data URL */
 async function decodeTextureFile(file) {
@@ -19,8 +19,9 @@ async function decodeTextureFile(file) {
     return decodeTgaToDataUrl(buf);
   }
   if (name.endsWith('.dds') || name.endsWith('.texture')) {
-    const dds = name.endsWith('.texture') ? extractDdsFromTexture(buf) : buf;
-    const meta = decodeDds(dds);
+    const extracted = name.endsWith('.texture') ? extractDdsFromTexture(buf) : null;
+    const ddsBuffer = extracted ? extracted.ddsBuffer : buf;
+    const meta = ddsToImageData(ddsBuffer);
     if (!meta) return null;
     const canvas = document.createElement('canvas');
     canvas.width = meta.width; canvas.height = meta.height;
