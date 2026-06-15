@@ -43,6 +43,7 @@ export default function SpriteSheetEditor({ label, storageKey }) {
   const handleXmlFile = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
     const text = await file.text();
     const parsed = parseSdXml(text);
     setData(parsed);
