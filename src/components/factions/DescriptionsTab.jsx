@@ -84,40 +84,69 @@ export default function DescriptionsTab({ factionName }) {
 
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copySource, setCopySource] = useState('');
+  const [copyStrings, setCopyStrings] = useState({
+    sourceAdjective: '', adjective: '', displayName: '',
+    leaderTitle: '', heirTitle: '', strengths: '', weaknesses: '', customUnit: ''
+  });
 
   // Distinct faction names present in the loaded strings, excluding current
   const sourceFactions = useMemo(() => {
     const names = new Set();
     for (const e of allEntries) {
-      const m = e.key?.match(/^(?:EMT_)?([A-Z0-9_]+?)(?:_FACTION|_STRENGTH|_WEAKNESS|_UNIT|$)/);
+      const m = e.key?.match(/^\{?(?:EMT_)?([A-Z0-9]+?)(?:_FACTION|_STRENGTH|_WEAKNESS|_UNIT|\}|$)/);
       if (m) names.add(m[1].toLowerCase());
     }
     names.delete(factionName.toLowerCase());
     return [...names].sort();
   }, [allEntries, factionName]);
 
+  const openCopyModal = () => {
+    setCopySource('');
+    setCopyStrings({ sourceAdjective: '', adjective: '', displayName: '', leaderTitle: '', heirTitle: '', strengths: '', weaknesses: '', customUnit: '' });
+    setShowCopyModal(true);
+  };
+
   const confirmCopyFromFaction = () => {
     if (!copySource) return;
     const srcUpper = copySource.toUpperCase();
     const dstUpper = factionName.toUpperCase();
+    const { sourceAdjective, adjective, displayName, leaderTitle, heirTitle, strengths, weaknesses, customUnit } = copyStrings;
+    const srcAdj = sourceAdjective.trim();
+    const newAdj = adjective.trim();
+
     const srcEntries = allEntries.filter(e => e.key?.toUpperCase().includes(srcUpper));
-    const newEntries = srcEntries.map(e => ({
-      key: e.key.replace(new RegExp(srcUpper, 'g'), dstUpper),
-      value: e.value
-    }));
-    // Remove any existing entries for this faction, then add new ones
+    const newEntries = srcEntries.map(e => {
+      const newKey = e.key.replace(new RegExp(srcUpper, 'g'), dstUpper);
+      let newValue = e.value;
+
+      if (srcAdj && newAdj) newValue = newValue.replace(new RegExp(srcAdj, 'g'), newAdj);
+      if (displayName) {
+        newValue = newValue
+          .replace(new RegExp(copySource, 'gi'), displayName)
+          .replace(new RegExp(copySource.toLowerCase(), 'gi'), displayName.toLowerCase());
+      }
+
+      if (newKey === `{${dstUpper}}` && displayName.trim()) newValue = displayName.trim();
+      else if (newKey === `{EMT_${dstUpper}_FACTION_LEADER_TITLE}` && leaderTitle.trim()) newValue = leaderTitle.trim();
+      else if (newKey === `{EMT_${dstUpper}_FACTION_HEIR_TITLE}` && heirTitle.trim()) newValue = heirTitle.trim();
+      else if (newKey === `{EMT_${dstUpper}_FACTION_LEADER_NAME}` && leaderTitle.trim()) newValue = `${leaderTitle.trim()} %S`;
+      else if (newKey === `{EMT_${dstUpper}_FACTION_HEIR_NAME}` && heirTitle.trim()) newValue = `${heirTitle.trim()} %S`;
+      else if (newKey === `{${dstUpper}_STRENGTH}` && strengths.trim()) newValue = strengths.trim();
+      else if (newKey === `{${dstUpper}_WEAKNESS}` && weaknesses.trim()) newValue = weaknesses.trim();
+      else if (newKey === `{${dstUpper}_UNIT}` && customUnit.trim()) newValue = customUnit.trim();
+
+      return { key: newKey, value: newValue };
+    });
+
     const filtered = allEntries.filter(e => !e.key?.toUpperCase().includes(dstUpper));
     const updated = [...filtered, ...newEntries];
     setAllEntries(updated);
     setStringsBinEntries(newEntries);
     localStorage.setItem(GLOBAL_STRINGS_KEY, JSON.stringify({
-      entries: updated,
-      magic1: magicValues.magic1,
-      magic2: magicValues.magic2
+      entries: updated, magic1: magicValues.magic1, magic2: magicValues.magic2
     }));
     window.dispatchEvent(new CustomEvent('strings-bin-updated'));
     setShowCopyModal(false);
-    setCopySource('');
   };
 
   return (
@@ -145,7 +174,7 @@ export default function DescriptionsTab({ factionName }) {
       {/* Copy-from-faction modal */}
       {showCopyModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 w-72 space-y-3 shadow-xl">
+          <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 w-96 max-h-[85vh] overflow-y-auto space-y-3 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-200">Copy Entries From Faction</h3>
               <button onClick={() => setShowCopyModal(false)} className="text-slate-500 hover:text-slate-300">
@@ -155,6 +184,7 @@ export default function DescriptionsTab({ factionName }) {
             <p className="text-[11px] text-slate-400">
               Copy all string entries from another faction and remap the keys to <span className="font-mono text-amber-400">{factionName}</span>.
             </p>
+
             <div className="space-y-1.5">
               <label className="text-[10px] text-slate-500 uppercase font-semibold">Source Faction</label>
               {sourceFactions.length > 0 ? (
@@ -167,6 +197,80 @@ export default function DescriptionsTab({ factionName }) {
                 <p className="text-[10px] text-slate-500 italic">No other factions found in strings.bin.</p>
               )}
             </div>
+
+            <div className="border-t border-slate-700 pt-3 space-y-3">
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">String Replacements</p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] text-slate-400 block mb-1">Source Adjective</label>
+                  <input value={copyStrings.sourceAdjective}
+                    onChange={e => setCopyStrings(s => ({ ...s, sourceAdjective: e.target.value }))}
+                    placeholder="e.g. Milanese"
+                    className="w-full h-7 px-2 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-blue-500" />
+                  <p className="text-[9px] text-slate-500 mt-0.5">Adjective to replace from source</p>
+                </div>
+                <div>
+                  <label className="text-[9px] text-slate-400 block mb-1">New Adjective</label>
+                  <input value={copyStrings.adjective}
+                    onChange={e => setCopyStrings(s => ({ ...s, adjective: e.target.value }))}
+                    placeholder="e.g. Mantuan"
+                    className="w-full h-7 px-2 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-blue-500" />
+                  <p className="text-[9px] text-slate-500 mt-0.5">New adjective to use</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-400 block mb-1">Faction Display Name</label>
+                <input value={copyStrings.displayName}
+                  onChange={e => setCopyStrings(s => ({ ...s, displayName: e.target.value }))}
+                  placeholder="e.g. Marquisate of Mantua"
+                  className="w-full h-7 px-2 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-blue-500" />
+                <p className="text-[9px] text-slate-500 mt-0.5">Used for key {'{' + factionName.toUpperCase() + '}'}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] text-slate-400 block mb-1">Leader Title (optional)</label>
+                  <input value={copyStrings.leaderTitle}
+                    onChange={e => setCopyStrings(s => ({ ...s, leaderTitle: e.target.value }))}
+                    placeholder="e.g. Great Khan"
+                    className="w-full h-7 px-2 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="text-[9px] text-slate-400 block mb-1">Heir Title (optional)</label>
+                  <input value={copyStrings.heirTitle}
+                    onChange={e => setCopyStrings(s => ({ ...s, heirTitle: e.target.value }))}
+                    placeholder="e.g. Khan"
+                    className="w-full h-7 px-2 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-400 block mb-1">{'{' + factionName.toUpperCase() + '_STRENGTH}'} (optional)</label>
+                <textarea value={copyStrings.strengths}
+                  onChange={e => setCopyStrings(s => ({ ...s, strengths: e.target.value }))}
+                  placeholder="e.g. Expert horse archers, fast movement"
+                  className="w-full h-14 px-2 py-1.5 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 resize-none focus:outline-none focus:border-blue-500" />
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-400 block mb-1">{'{' + factionName.toUpperCase() + '_WEAKNESS}'} (optional)</label>
+                <textarea value={copyStrings.weaknesses}
+                  onChange={e => setCopyStrings(s => ({ ...s, weaknesses: e.target.value }))}
+                  placeholder="e.g. Weak in siege defense"
+                  className="w-full h-14 px-2 py-1.5 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 resize-none focus:outline-none focus:border-blue-500" />
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-400 block mb-1">{'{' + factionName.toUpperCase() + '_UNIT}'} (optional)</label>
+                <input value={copyStrings.customUnit}
+                  onChange={e => setCopyStrings(s => ({ ...s, customUnit: e.target.value }))}
+                  placeholder="e.g. Keshik Guard"
+                  className="w-full h-7 px-2 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-blue-500" />
+              </div>
+            </div>
+
             <div className="flex gap-2 justify-end pt-1">
               <button onClick={() => setShowCopyModal(false)}
                 className="px-3 py-1 rounded text-[11px] border border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-400 transition-colors">
@@ -201,7 +305,7 @@ export default function DescriptionsTab({ factionName }) {
           <p className="text-xs">No entries for <span className="font-mono text-amber-400">{factionName}</span> in the loaded strings.bin.</p>
           {allEntries.length > 0 && (
             <Button variant="outline" size="sm" className="text-[10px] text-blue-300 border-blue-600 hover:bg-blue-900/30"
-              onClick={() => { setCopySource(''); setShowCopyModal(true); }}>
+              onClick={openCopyModal}>
               <Copy className="w-3 h-3 mr-1" /> Copy from another faction…
             </Button>
           )}
