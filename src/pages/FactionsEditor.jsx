@@ -8,12 +8,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BannersTab, { BANNERS_GLOBAL_KEY } from '@/components/factions/BannersTab';
 import { parseBannersXml, serialiseBannersXml } from '@/components/minorfiles/banners/bannersParser';
-import { parseStringsBin } from '@/components/strings/stringsBinCodec';
+import { parseStringsBin, encodeStringsBin } from '@/components/strings/stringsBinCodec';
 import DescriptionsTab from '@/components/factions/DescriptionsTab';
 import MiscTab, { hasFactionNavyEntry, insertFactionNavyEntry } from '@/components/factions/MiscTab';
 import FactionSymbolsTab from '@/components/factions/FactionSymbolsTab';
 
 const LS_OFFMAP = 'm2tw_offmap_models';
+const LS_MENU_STRINGS = 'm2tw_menu_strings_bin';
+
+/** Inject {UI_FACTION_X} and {UI_FACTION_X_DESCRIPTION} into menu strings if missing */
+function injectMenuStringsForFaction(factionName, displayName) {
+  try {
+    const raw = localStorage.getItem(LS_MENU_STRINGS);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const entries = parsed.entries || [];
+    const nameUpper = factionName.toUpperCase();
+    const uiKey = `UI_FACTION_${nameUpper}`;
+    const descKey = `UI_FACTION_${nameUpper}_DESCRIPTION`;
+    let changed = false;
+    if (!entries.some(e => e.key === uiKey)) {
+      entries.push({ key: uiKey, value: displayName || nameUpper });
+      changed = true;
+    }
+    if (!entries.some(e => e.key === descKey)) {
+      entries.push({ key: descKey, value: displayName || factionName });
+      changed = true;
+    }
+    if (changed) {
+      localStorage.setItem(LS_MENU_STRINGS, JSON.stringify({ ...parsed, entries }));
+      window.dispatchEvent(new CustomEvent('menu-strings-updated'));
+    }
+  } catch {}
+}
 
 function autoInsertNavyEntry(name) {
   try {
@@ -555,8 +582,10 @@ export default function FactionsEditor() {
   const eduRef = useRef();
   const bannersRef = useRef();
   const stringsRef = useRef();
+  const menuStringsRef = useRef();
   const [bannersLoaded, setBannersLoaded] = useState(false);
   const [stringsLoaded, setStringsLoaded] = useState(false);
+  const [menuStringsLoaded, setMenuStringsLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -574,6 +603,7 @@ export default function FactionsEditor() {
     try {const r = localStorage.getItem(LS_UNITS);if (r) setEduUnits(JSON.parse(r));} catch {}
     try {if (localStorage.getItem(BANNERS_GLOBAL_KEY)) setBannersLoaded(true);} catch {}
     try {if (localStorage.getItem('m2tw_strings_bin_global')) setStringsLoaded(true);} catch {}
+    try {if (localStorage.getItem(LS_MENU_STRINGS)) setMenuStringsLoaded(true);} catch {}
   }, []);
 
   const loadFactions = useCallback(async (e) => {
@@ -640,6 +670,20 @@ export default function FactionsEditor() {
     e.target.value = '';
   }, []);
 
+  const loadMenuStrings = useCallback(async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const buf = await file.arrayBuffer();
+    const parsed = parseStringsBin(buf);
+    if (parsed?.entries) {
+      localStorage.setItem(LS_MENU_STRINGS, JSON.stringify({
+        entries: parsed.entries, magic1: parsed.magic1, magic2: parsed.magic2
+      }));
+      setMenuStringsLoaded(true);
+      window.dispatchEvent(new CustomEvent('menu-strings-updated'));
+    }
+    e.target.value = '';
+  }, []);
+
   const handleExport = () => {
     if (!factions) return;
     const text = serialiseDescrSmFactions(factions);
@@ -691,6 +735,7 @@ export default function FactionsEditor() {
     setFactions(updated);
     setSelectedIdx(updated.length - 1);
     autoInsertNavyEntry(newF.name);
+    injectMenuStringsForFaction(newF.name, newF.name);
   };
 
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
@@ -946,6 +991,7 @@ export default function FactionsEditor() {
     }
     
     autoInsertNavyEntry(newFactionName);
+    injectMenuStringsForFaction(newFactionName, duplicateStrings.displayName || newFactionName);
     setDuplicateModalOpen(false);
     setDuplicateSourceIdx(null);
     setDuplicateName('');
@@ -1029,6 +1075,12 @@ export default function FactionsEditor() {
             {stringsLoaded ? 'Strings ✓' : 'expanded.txt.strings.bin'}
           </Button>
 
+          <input ref={menuStringsRef} type="file" accept=".bin" className="hidden" onChange={loadMenuStrings} />
+          <Button variant="outline" size="sm" className={`text-[10px] h-7 ${menuStringsLoaded ? 'text-green-300 border-green-700' : ''}`} onClick={() => menuStringsRef.current?.click()}>
+            <Upload className="w-3 h-3 mr-1" />
+            {menuStringsLoaded ? 'Menu Strings ✓' : 'menu_english.txt.strings.bin'}
+          </Button>
+
           <div className="w-px h-5 bg-border mx-1" />
 
           <input ref={fileRef} type="file" accept=".txt" className="hidden" onChange={loadFactions} />
@@ -1049,6 +1101,20 @@ export default function FactionsEditor() {
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'descr_banners_new.xml'; a.click();
             }}>
               <Download className="w-3 h-3 mr-1" /> Export banners
+            </Button>
+          )}
+          {menuStringsLoaded && (
+            <Button variant="outline" size="sm" className="text-[10px] h-7 text-slate-200 border-slate-600 hover:bg-slate-700" onClick={() => {
+              try {
+                const raw = localStorage.getItem(LS_MENU_STRINGS);
+                if (!raw) return;
+                const { entries, magic1, magic2 } = JSON.parse(raw);
+                const buf = encodeStringsBin(entries, magic1, magic2);
+                const blob = new Blob([buf], { type: 'application/octet-stream' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'menu_english.txt.strings.bin'; a.click();
+              } catch {}
+            }}>
+              <Download className="w-3 h-3 mr-1" /> Export menu strings
             </Button>
           )}
         </div>
