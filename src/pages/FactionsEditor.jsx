@@ -1,17 +1,46 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Download, Plus, Trash2, AlertTriangle, Shield, X, Copy, GripVertical, Palette, FileText, Settings, ScrollText } from 'lucide-react';
+import { Upload, Download, Plus, Trash2, AlertTriangle, Shield, X, Copy, GripVertical, Palette, FileText, Settings, ScrollText, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import BannersTab from '@/components/factions/BannersTab';
+import BannersTab, { BANNERS_GLOBAL_KEY } from '@/components/factions/BannersTab';
 import { parseBannersXml, serialiseBannersXml } from '@/components/minorfiles/banners/bannersParser';
+import { parseStringsBin, encodeStringsBin } from '@/components/strings/stringsBinCodec';
 import DescriptionsTab from '@/components/factions/DescriptionsTab';
 import MiscTab, { hasFactionNavyEntry, insertFactionNavyEntry } from '@/components/factions/MiscTab';
+import FactionSymbolsTab from '@/components/factions/FactionSymbolsTab';
 
 const LS_OFFMAP = 'm2tw_offmap_models';
+const LS_MENU_STRINGS = 'm2tw_menu_strings_bin';
+
+/** Inject {UI_FACTION_X} and {UI_FACTION_X_DESCRIPTION} into menu strings if missing */
+function injectMenuStringsForFaction(factionName, displayName) {
+  try {
+    const raw = localStorage.getItem(LS_MENU_STRINGS);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const entries = parsed.entries || [];
+    const nameUpper = factionName.toUpperCase();
+    const uiKey = `UI_FACTION_${nameUpper}`;
+    const descKey = `UI_FACTION_${nameUpper}_DESCRIPTION`;
+    let changed = false;
+    if (!entries.some(e => e.key === uiKey)) {
+      entries.push({ key: uiKey, value: displayName || nameUpper });
+      changed = true;
+    }
+    if (!entries.some(e => e.key === descKey)) {
+      entries.push({ key: descKey, value: displayName || factionName });
+      changed = true;
+    }
+    if (changed) {
+      localStorage.setItem(LS_MENU_STRINGS, JSON.stringify({ ...parsed, entries }));
+      window.dispatchEvent(new CustomEvent('menu-strings-updated'));
+    }
+  } catch {}
+}
 
 function autoInsertNavyEntry(name) {
   try {
@@ -361,7 +390,12 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
   const [activeTab, setActiveTab] = useState('stratmap');
   const [tertiaryEnabled, setTertiaryEnabled] = useState(!!faction.tertiary_colour);
   const set = (key, val) => setDraft({ ...draft, [key]: val });
-  const handleSave = () => { onChange(draft); onSave?.(); };
+  const [saved, setSaved] = useState(false);
+  const handleSave = () => {
+    onChange(draft);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
   const handleCancel = () => { setDraft({ ...faction }); onCancel?.(); };
   const nameUpper = (draft.name || '').toUpperCase();
   const defaultLogo = `FACTION_LOGO_${nameUpper}`;
@@ -383,17 +417,20 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
         <div className="flex items-center justify-between border-b border-slate-600 pb-2 mb-4">
           <h2 className="text-sm font-semibold text-slate-200">Edit Faction: {draft.name}</h2>
           <div className="flex gap-2">
-            <button onClick={handleCancel} className="px-3 py-1 text-[10px] rounded border border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</button>
-            <button onClick={handleSave} className="px-3 py-1 text-[10px] rounded bg-green-700 hover:bg-green-600 text-white font-semibold">Save Changes</button>
+            <button onClick={handleCancel} className="px-3 py-1 text-[10px] rounded border border-slate-600 text-slate-300 hover:bg-slate-700">Reset</button>
+            <button onClick={handleSave} className={`px-3 py-1 text-[10px] rounded font-semibold transition-colors ${saved ? 'bg-emerald-600 text-white' : 'bg-green-700 hover:bg-green-600 text-white'}`}>
+              {saved ? '✓ Saved' : 'Save Changes'}
+            </button>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="stratmap" className="text-[10px]"><Palette className="w-3 h-3 mr-1" />Stratmap</TabsTrigger>
             <TabsTrigger value="banners" className="text-[10px]"><FileText className="w-3 h-3 mr-1" />Banners</TabsTrigger>
             <TabsTrigger value="descriptions" className="text-[10px]"><ScrollText className="w-3 h-3 mr-1" />Descriptions</TabsTrigger>
             <TabsTrigger value="misc" className="text-[10px]"><Settings className="w-3 h-3 mr-1" />Misc</TabsTrigger>
+            <TabsTrigger value="symbols" className="text-[10px]"><Image className="w-3 h-3 mr-1" />Symbols</TabsTrigger>
           </TabsList>
 
           <TabsContent value="stratmap" className="space-y-5">
@@ -519,6 +556,10 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
           <TabsContent value="misc" className="space-y-4">
             <MiscTab factionName={draft.name} />
           </TabsContent>
+
+          <TabsContent value="symbols" className="space-y-4">
+            <FactionSymbolsTab factionName={draft.name} />
+          </TabsContent>
         </Tabs>
 
       </div>
@@ -539,18 +580,40 @@ export default function FactionsEditor() {
   const cultRef = useRef();
   const relRef = useRef();
   const eduRef = useRef();
+  const bannersRef = useRef();
+  const stringsRef = useRef();
+  const menuStringsRef = useRef();
+  const [bannersLoaded, setBannersLoaded] = useState(false);
+  const [stringsLoaded, setStringsLoaded] = useState(false);
+  const [menuStringsLoaded, setMenuStringsLoaded] = useState(false);
 
   useEffect(() => {
-    try {const r = localStorage.getItem(LS_KEY);if (r) setFactions(parseDescrSmFactions(r));} catch {}
+    try {
+      const r = localStorage.getItem(LS_KEY);
+      if (r) {
+        setFactions(parseDescrSmFactions(r));
+        // Keep RefDataContext key in sync on mount too
+        if (!localStorage.getItem('m2tw_factions_file')) {
+          try { localStorage.setItem('m2tw_factions_file', r); } catch {}
+        }
+      }
+    } catch {}
     try {const r = localStorage.getItem(LS_CULT);if (r) setCultures(JSON.parse(r));} catch {}
     try {const r = localStorage.getItem(LS_REL);if (r) setReligions(JSON.parse(r));} catch {}
     try {const r = localStorage.getItem(LS_UNITS);if (r) setEduUnits(JSON.parse(r));} catch {}
+    try {if (localStorage.getItem(BANNERS_GLOBAL_KEY)) setBannersLoaded(true);} catch {}
+    try {if (localStorage.getItem('m2tw_strings_bin_global')) setStringsLoaded(true);} catch {}
+    try {if (localStorage.getItem(LS_MENU_STRINGS)) setMenuStringsLoaded(true);} catch {}
   }, []);
 
   const loadFactions = useCallback(async (e) => {
     const file = e.target.files?.[0];if (!file) return;
     const text = await file.text();
-    try {localStorage.setItem(LS_KEY, text);} catch {}
+    try {
+      localStorage.setItem(LS_KEY, text);
+      // Also sync to RefDataContext key so Unit Editor / ModelDB factions stay up-to-date
+      localStorage.setItem('m2tw_factions_file', text);
+    } catch {}
     const parsed = parseDescrSmFactions(text);
     setFactions(parsed);
     setSelectedIdx(parsed.length > 0 ? 0 : null);
@@ -581,6 +644,43 @@ export default function FactionsEditor() {
     const list = parseEduUnits(text);
     setEduUnits(list);
     try {localStorage.setItem(LS_UNITS, JSON.stringify(list));} catch {}
+    e.target.value = '';
+  }, []);
+
+  const loadBannersXml = useCallback(async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const text = await file.text();
+    localStorage.setItem(BANNERS_GLOBAL_KEY, text);
+    setBannersLoaded(true);
+    window.dispatchEvent(new CustomEvent('banners-xml-loaded'));
+    e.target.value = '';
+  }, []);
+
+  const loadStringsBinGlobal = useCallback(async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const buf = await file.arrayBuffer();
+    const parsed = parseStringsBin(buf);
+    if (parsed?.entries) {
+      localStorage.setItem('m2tw_strings_bin_global', JSON.stringify({
+        entries: parsed.entries, magic1: parsed.magic1, magic2: parsed.magic2
+      }));
+      setStringsLoaded(true);
+      window.dispatchEvent(new CustomEvent('strings-bin-updated'));
+    }
+    e.target.value = '';
+  }, []);
+
+  const loadMenuStrings = useCallback(async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const buf = await file.arrayBuffer();
+    const parsed = parseStringsBin(buf);
+    if (parsed?.entries) {
+      localStorage.setItem(LS_MENU_STRINGS, JSON.stringify({
+        entries: parsed.entries, magic1: parsed.magic1, magic2: parsed.magic2
+      }));
+      setMenuStringsLoaded(true);
+      window.dispatchEvent(new CustomEvent('menu-strings-updated'));
+    }
     e.target.value = '';
   }, []);
 
@@ -635,6 +735,7 @@ export default function FactionsEditor() {
     setFactions(updated);
     setSelectedIdx(updated.length - 1);
     autoInsertNavyEntry(newF.name);
+    injectMenuStringsForFaction(newF.name, newF.name);
   };
 
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
@@ -699,7 +800,7 @@ export default function FactionsEditor() {
     
     // Copy banner texture entries from source faction to new faction
     try {
-      const srcBannersData = localStorage.getItem(`m2tw_banners_${src.name}`);
+      const srcBannersData = localStorage.getItem(BANNERS_GLOBAL_KEY);
       if (srcBannersData) {
         const parsed = parseBannersXml(srcBannersData);
         const srcNameLower = src.name.toLowerCase();
@@ -782,10 +883,8 @@ export default function FactionsEditor() {
         copySectionTextures('royalBanner', true);
         
         const newXaml = serialiseBannersXml(parsed);
-        localStorage.setItem(`m2tw_banners_${newFactionName}`, newXaml);
-        window.dispatchEvent(new CustomEvent('banners-updated', { 
-          detail: { factionName: newFactionName, data: newXaml } 
-        }));
+        localStorage.setItem(BANNERS_GLOBAL_KEY, newXaml);
+        window.dispatchEvent(new CustomEvent('banners-xml-loaded'));
       }
     } catch (err) {
       console.error('Failed to copy banners:', err);
@@ -892,6 +991,7 @@ export default function FactionsEditor() {
     }
     
     autoInsertNavyEntry(newFactionName);
+    injectMenuStringsForFaction(newFactionName, duplicateStrings.displayName || newFactionName);
     setDuplicateModalOpen(false);
     setDuplicateSourceIdx(null);
     setDuplicateName('');
@@ -963,6 +1063,24 @@ export default function FactionsEditor() {
             {eduUnits.length ? `${eduUnits.length} units` : 'export_descr_unit.txt'}
           </Button>
 
+          <input ref={bannersRef} type="file" accept=".xml" className="hidden" onChange={loadBannersXml} />
+          <Button variant="outline" size="sm" className={`text-[10px] h-7 ${bannersLoaded ? 'text-green-300 border-green-700' : ''}`} onClick={() => bannersRef.current?.click()}>
+            <Upload className="w-3 h-3 mr-1" />
+            {bannersLoaded ? 'Banners ✓' : 'descr_banners_new.xml'}
+          </Button>
+
+          <input ref={stringsRef} type="file" accept=".bin" className="hidden" onChange={loadStringsBinGlobal} />
+          <Button variant="outline" size="sm" className={`text-[10px] h-7 ${stringsLoaded ? 'text-green-300 border-green-700' : ''}`} onClick={() => stringsRef.current?.click()}>
+            <Upload className="w-3 h-3 mr-1" />
+            {stringsLoaded ? 'Strings ✓' : 'expanded.txt.strings.bin'}
+          </Button>
+
+          <input ref={menuStringsRef} type="file" accept=".bin" className="hidden" onChange={loadMenuStrings} />
+          <Button variant="outline" size="sm" className={`text-[10px] h-7 ${menuStringsLoaded ? 'text-green-300 border-green-700' : ''}`} onClick={() => menuStringsRef.current?.click()}>
+            <Upload className="w-3 h-3 mr-1" />
+            {menuStringsLoaded ? 'Menu Strings ✓' : 'menu_english.txt.strings.bin'}
+          </Button>
+
           <div className="w-px h-5 bg-border mx-1" />
 
           <input ref={fileRef} type="file" accept=".txt" className="hidden" onChange={loadFactions} />
@@ -972,9 +1090,33 @@ export default function FactionsEditor() {
           </Button>
           {factions &&
           <Button variant="outline" size="sm" className="text-[10px] h-7 text-slate-200 border-slate-600 hover:bg-slate-700" onClick={handleExport}>
-              <Download className="w-3 h-3 mr-1" /> Export
+              <Download className="w-3 h-3 mr-1" /> Export factions
             </Button>
           }
+          {bannersLoaded && (
+            <Button variant="outline" size="sm" className="text-[10px] h-7 text-slate-200 border-slate-600 hover:bg-slate-700" onClick={() => {
+              const data = localStorage.getItem(BANNERS_GLOBAL_KEY);
+              if (!data) return;
+              const blob = new Blob([data], { type: 'text/plain' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'descr_banners_new.xml'; a.click();
+            }}>
+              <Download className="w-3 h-3 mr-1" /> Export banners
+            </Button>
+          )}
+          {menuStringsLoaded && (
+            <Button variant="outline" size="sm" className="text-[10px] h-7 text-slate-200 border-slate-600 hover:bg-slate-700" onClick={() => {
+              try {
+                const raw = localStorage.getItem(LS_MENU_STRINGS);
+                if (!raw) return;
+                const { entries, magic1, magic2 } = JSON.parse(raw);
+                const buf = encodeStringsBin(entries, magic1, magic2);
+                const blob = new Blob([buf], { type: 'application/octet-stream' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'menu_english.txt.strings.bin'; a.click();
+              } catch {}
+            }}>
+              <Download className="w-3 h-3 mr-1" /> Export menu strings
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1051,7 +1193,6 @@ export default function FactionsEditor() {
             key={selectedIdx}
             faction={factions[selectedIdx]}
             onChange={(f) => updateFaction(selectedIdx, f)}
-            onSave={() => setSelectedIdx(null)}
             onCancel={() => setSelectedIdx(null)}
             cultures={cultures}
             religions={religions}

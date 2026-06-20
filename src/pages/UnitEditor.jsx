@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Swords, Upload, Download, Plus, FileText, CheckCircle2, Copy, Database, Image, FileCode } from 'lucide-react';
+import { Swords, Upload, Download, Plus, FileText, CheckCircle2, Copy, Database, Image, FileCode, Shield } from 'lucide-react';
+import { useRefData } from '../components/edb/RefDataContext';
 import UnitList from '../components/units/UnitList';
 import UnitEditorPanel from '../components/units/UnitEditor';
 import { parseEDU, serializeEDU, serializeUnit, createDefaultUnit } from '../components/units/EDUParser';
@@ -123,10 +124,12 @@ export default function UnitEditorPage() {
   });
   const [unitImages, setUnitImages] = useState(() => window._m2tw_unit_images || loadUnitImages());
   const [modeldb, setModeldb] = useState(() => modeldbStore.get());
+  const { factions: refFactions, loadFactionsFile } = useRefData();
   const fileRef = useRef();
   const modeldbRef = useRef();
   const stringsBinRef = useRef();
   const unitUiFolderRef = useRef();
+  const factionsRef = useRef();
 
   // Auto-load from cached EDU file on mount (always prefer the raw file over stale parsed cache)
   useEffect(() => {
@@ -346,6 +349,16 @@ export default function UnitEditorPage() {
     try { localStorage.setItem(UNIT_IMAGES_KEY, JSON.stringify(updated)); } catch {}
   };
 
+  const handleFactionsLoad = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    loadFactionsFile(text); // saves to 'm2tw_factions_file' via RefDataContext
+    // Also sync to FactionsEditor key so both editors share the same data
+    try { localStorage.setItem('m2tw_sm_factions_raw', text); } catch {}
+    e.target.value = '';
+  };
+
   const handleStringsBinLoad = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -484,6 +497,15 @@ export default function UnitEditorPage() {
           </button>
           <input ref={modeldbRef} type="file" accept=".modeldb,.txt" className="hidden" onChange={handleModeldbLoad} />
           <button
+            onClick={() => factionsRef.current?.click()}
+            className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded border transition-colors ${refFactions?.length > 5 ? 'border-green-700 text-green-400 hover:bg-green-950' : 'border-border hover:bg-accent text-muted-foreground hover:text-foreground'}`}
+            title="Load descr_sm_factions.txt to populate faction dropdowns"
+          >
+            <Shield className="w-3 h-3" />
+            {refFactions?.length > 5 ? `Factions (${refFactions.length})` : 'Load factions'}
+          </button>
+          <input ref={factionsRef} type="file" accept=".txt" className="hidden" onChange={handleFactionsLoad} />
+          <button
             onClick={() => stringsBinRef.current?.click()}
             className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
             title="Load export_units.txt or export_units.txt.strings.bin"
@@ -508,6 +530,15 @@ export default function UnitEditorPage() {
             >
               {copied ? <CheckCircle2 className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
               {copied ? 'Copied!' : 'Copy unit'}
+            </button>
+          )}
+          {modeldb && (
+            <button
+              onClick={handleDownloadModeldb}
+              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <Download className="w-3 h-3" />
+              Download ModelDB
             </button>
           )}
           <Button size="sm" className="h-7 text-[11px] gap-1.5" onClick={handleDownload} disabled={units.length === 0}>
