@@ -350,7 +350,9 @@ export default function UnitEditorPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const text = await file.text();
-    loadFactionsFile(text);
+    loadFactionsFile(text); // saves to 'm2tw_factions_file' via RefDataContext
+    // Also sync to FactionsEditor key so both editors share the same data
+    try { localStorage.setItem('m2tw_sm_factions_raw', text); } catch {}
     e.target.value = '';
   };
 

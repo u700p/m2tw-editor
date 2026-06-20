@@ -559,7 +559,16 @@ export default function FactionsEditor() {
   const [stringsLoaded, setStringsLoaded] = useState(false);
 
   useEffect(() => {
-    try {const r = localStorage.getItem(LS_KEY);if (r) setFactions(parseDescrSmFactions(r));} catch {}
+    try {
+      const r = localStorage.getItem(LS_KEY);
+      if (r) {
+        setFactions(parseDescrSmFactions(r));
+        // Keep RefDataContext key in sync on mount too
+        if (!localStorage.getItem('m2tw_factions_file')) {
+          try { localStorage.setItem('m2tw_factions_file', r); } catch {}
+        }
+      }
+    } catch {}
     try {const r = localStorage.getItem(LS_CULT);if (r) setCultures(JSON.parse(r));} catch {}
     try {const r = localStorage.getItem(LS_REL);if (r) setReligions(JSON.parse(r));} catch {}
     try {const r = localStorage.getItem(LS_UNITS);if (r) setEduUnits(JSON.parse(r));} catch {}
@@ -570,7 +579,11 @@ export default function FactionsEditor() {
   const loadFactions = useCallback(async (e) => {
     const file = e.target.files?.[0];if (!file) return;
     const text = await file.text();
-    try {localStorage.setItem(LS_KEY, text);} catch {}
+    try {
+      localStorage.setItem(LS_KEY, text);
+      // Also sync to RefDataContext key so Unit Editor / ModelDB factions stay up-to-date
+      localStorage.setItem('m2tw_factions_file', text);
+    } catch {}
     const parsed = parseDescrSmFactions(text);
     setFactions(parsed);
     setSelectedIdx(parsed.length > 0 ? 0 : null);
