@@ -30,7 +30,7 @@ function parseResourcesFull(text) {
 }
 
 function serializeResources(resources) {
-  return resources.map(r => {
+  return toCRLF(resources.map(r => {
     const lines = [`type\t\t\t${r.name}`];
     lines.push(`trade_value\t\t${r.tradeValue}`);
     if (r.model) lines.push(`model\t\t\t${r.model}`);
