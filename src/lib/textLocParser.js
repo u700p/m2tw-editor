@@ -1,5 +1,7 @@
 import { toCRLF } from './lineEndings';
 
+export const TEXT_LOC_META = Symbol.for('rtw-editor.textLocMeta');
+
 /**
  * Parser for Total War text localization files.
  *
@@ -27,7 +29,7 @@ function stripBom(text) {
     .replace(/^\u00BB\u00BF/, '');
 }
 
-function isCommentLine(line) {
+function isNoteLine(line) {
   const t = line.trim();
   return !t || t.startsWith(';') || t.startsWith('¬');
 }
@@ -38,36 +40,46 @@ function normalizeValueLine(line) {
 
 export function parseTextLocFile(text) {
   const map = {};
+  const tokens = [];
   const cleaned = stripBom(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const lines = cleaned.split('\n');
 
-  let currentKey = null;
+  let currentEntry = null;
   let valueLines = [];
 
   const flush = () => {
-    if (!currentKey) return;
+    if (!currentEntry) return;
     const value = valueLines.join('\n').trim();
-    map[currentKey] = value;
-    currentKey = null;
+    map[currentEntry.key] = value;
+    tokens.push({
+      type: 'entry',
+      key: currentEntry.key,
+      inline: currentEntry.inline && !value.includes('\n'),
+      multiline: valueLines.length > 1 || (!currentEntry.inline && value.length > 0),
+    });
+    currentEntry = null;
     valueLines = [];
   };
 
   for (const raw of lines) {
     const trimmed = raw.trim();
-    if (!trimmed) {
+    if (isNoteLine(raw)) {
+      flush();
+      tokens.push({ type: 'raw', raw });
       continue;
     }
 
     const keyMatch = trimmed.match(/^\{([^}]+)\}(.*)$/);
     if (keyMatch) {
       flush();
-      currentKey = keyMatch[1].trim();
       const inlineValue = keyMatch[2].replace(/^[\t ]+/, '').trim();
+      currentEntry = { key: keyMatch[1].trim(), inline: !!inlineValue };
       valueLines = inlineValue ? [inlineValue] : [];
       continue;
     }
 
-    if (!currentKey || isCommentLine(raw)) {
+    if (!currentEntry) {
+      tokens.push({ type: 'raw', raw });
       continue;
     }
 
@@ -75,7 +87,22 @@ export function parseTextLocFile(text) {
   }
 
   flush();
+  Object.defineProperty(map, TEXT_LOC_META, {
+    value: { tokens },
+    enumerable: true,
+    configurable: true,
+  });
   return map;
+}
+
+function serializeEntryLine(key, value, token = {}) {
+  const strValue = String(value ?? '');
+  const valueLines = strValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (!strValue) return [`{${key}}`];
+  if (token.multiline || strValue.includes('\n') || !token.inline) {
+    return [`{${key}}`, ...valueLines];
+  }
+  return [`{${key}}${strValue}`];
 }
 
 export function textLocMapToEntries(map) {
@@ -86,9 +113,32 @@ export function textLocMapToEntries(map) {
 
 export function serializeTextLocFile(map, { header } = {}) {
   const lines = [];
+  const meta = map?.[TEXT_LOC_META];
+  const emitted = new Set();
+
+  if (meta?.tokens?.length) {
+    for (const token of meta.tokens) {
+      if (token.type === 'raw') {
+        lines.push(token.raw ?? '');
+        continue;
+      }
+      if (token.type !== 'entry') continue;
+      if (!Object.prototype.hasOwnProperty.call(map, token.key)) continue;
+      lines.push(...serializeEntryLine(token.key, map[token.key], token));
+      emitted.add(token.key);
+    }
+    for (const [key, value] of Object.entries(map || {})) {
+      if (!key || emitted.has(key)) continue;
+      if (lines.length && lines[lines.length - 1] !== '') lines.push('');
+      lines.push(...serializeEntryLine(key, value, { inline: true }));
+      emitted.add(key);
+    }
+    return toCRLF(lines.join('\n').replace(/\n+$/, '') + '\n');
+  }
+
   if (header) lines.push(`¬ ${header}`, '');
   for (const [key, value] of Object.entries(map || {})) {
-    lines.push(`{${key}}${value ?? ''}`, '');
+    lines.push(...serializeEntryLine(key, value, { inline: true }), '');
   }
   return toCRLF(lines.join('\n').trimEnd() + '\n');
 }
