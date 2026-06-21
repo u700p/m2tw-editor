@@ -1,4 +1,5 @@
 import { parseTextLocFile, serializeTextLocFile } from '@/lib/textLocParser';
+import { toCRLF } from '@/lib/lineEndings';
 
 /**
  * Parser and serializer for export_descr_ancillaries.txt and export_ancillaries.txt
@@ -195,5 +196,5 @@ export function serializeAncillariesFile(data) {
     }
   }
 
-  return lines.join('\n');
+  return toCRLF(lines.join('\n'));
 }

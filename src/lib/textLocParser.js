@@ -1,3 +1,5 @@
+import { toCRLF } from './lineEndings';
+
 /**
  * Parser for Total War text localization files.
  *
@@ -88,5 +90,5 @@ export function serializeTextLocFile(map, { header } = {}) {
   for (const [key, value] of Object.entries(map || {})) {
     lines.push(`{${key}}${value ?? ''}`, '');
   }
-  return lines.join('\n').trimEnd() + '\n';
+  return toCRLF(lines.join('\n').trimEnd() + '\n');
 }

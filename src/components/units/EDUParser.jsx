@@ -1,3 +1,5 @@
+import { toCRLF } from '@/lib/lineEndings';
+
 // Parser and serializer for export_descr_unit.txt (EDU)
 
 export const CATEGORIES = ['infantry', 'cavalry', 'siege', 'ship'];
@@ -226,7 +228,7 @@ export function serializeUnit(unit) {
 }
 
 export function serializeEDU(units) {
-  return units.map(serializeUnit).join('\n\n');
+  return toCRLF(units.map(serializeUnit).join('\n\n'));
 }
 
 export function createDefaultUnit() {

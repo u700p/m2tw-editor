@@ -1,4 +1,5 @@
 import { parseTextLocFile, serializeTextLocFile } from '@/lib/textLocParser';
+import { toCRLF } from '@/lib/lineEndings';
 
 /**
  * Parser and serializer for export_descr_character_traits.txt and export_VnVs.txt
@@ -255,5 +256,5 @@ export function serializeTraitsFile(data) {
     }
   }
 
-  return lines.join('\n');
+  return toCRLF(lines.join('\n'));
 }
