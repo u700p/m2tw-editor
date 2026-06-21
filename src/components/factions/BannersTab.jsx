@@ -3,6 +3,7 @@ import { Download, FileText, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { parseBannersXml, serialiseBannersXml } from '@/components/minorfiles/banners/bannersParser';
+import { textBlob } from '@/lib/lineEndings';
 
 export const BANNERS_GLOBAL_KEY = 'm2tw_banners_xml_global';
 
@@ -77,7 +78,7 @@ export default function BannersTab({ factionName }) {
   const exportBanners = () => {
     if (!parsedData) return;
     const text = serialiseBannersXml(parsedData);
-    const blob = new Blob([text], { type: 'text/plain' });
+    const blob = textBlob(text, 'text/xml');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'descr_banners_new.xml';

@@ -12,6 +12,7 @@ import { parseStringsBin, encodeStringsBin } from '@/components/strings/stringsB
 import DescriptionsTab from '@/components/factions/DescriptionsTab';
 import MiscTab, { hasFactionNavyEntry, insertFactionNavyEntry } from '@/components/factions/MiscTab';
 import FactionSymbolsTab from '@/components/factions/FactionSymbolsTab';
+import { textBlob } from '@/lib/lineEndings';
 
 const LS_OFFMAP = 'm2tw_offmap_models';
 const LS_MENU_STRINGS = 'm2tw_menu_strings_bin';
@@ -683,7 +684,7 @@ export default function FactionsEditor() {
   const handleExport = () => {
     if (!factions) return;
     const text = serialiseDescrSmFactions(factions);
-    const blob = new Blob([text], { type: 'text/plain' });
+    const blob = textBlob(text);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'descr_sm_factions.txt';
@@ -1091,7 +1092,7 @@ export default function FactionsEditor() {
             <Button variant="outline" size="sm" className="text-[10px] h-7 text-slate-200 border-slate-600 hover:bg-slate-700" onClick={() => {
               const data = localStorage.getItem(BANNERS_GLOBAL_KEY);
               if (!data) return;
-              const blob = new Blob([data], { type: 'text/plain' });
+              const blob = textBlob(data, 'text/xml');
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'descr_banners_new.xml'; a.click();
             }}>
               <Download className="w-3 h-3 mr-1" /> Export banners
