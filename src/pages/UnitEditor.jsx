@@ -29,6 +29,17 @@ function saveUnits(units) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(units)); } catch {}
 }
 
+function makeUniqueUnitValue(base, units, field) {
+  const existing = new Set(units.map(u => String(u?.[field] || '').toLowerCase()));
+  const prefix = `${base || 'unit'}_copy`;
+  let candidate = prefix;
+  let counter = 2;
+  while (existing.has(candidate.toLowerCase())) {
+    candidate = `${prefix}_${counter++}`;
+  }
+  return candidate;
+}
+
 // Parse export_units.txt into a map: dictionary -> { name, long, short }
 // M2TW format: {key}value on one line, or {key}\nvalue on next line, with ¬ or tab or no separator
 function parseExportUnits(text) {
@@ -319,10 +330,25 @@ export default function UnitEditorPage() {
   };
 
   const handleDuplicate = (i) => {
-    const copy = { ...units[i], type: units[i].type + '_copy', dictionary: units[i].dictionary + '_copy' };
+    const source = units[i];
+    if (!source) return;
+    const copy = {
+      ...JSON.parse(JSON.stringify(source)),
+      type: makeUniqueUnitValue(source.type, units, 'type'),
+      dictionary: makeUniqueUnitValue(source.dictionary || source.type, units, 'dictionary'),
+    };
     const updated = [...units.slice(0, i + 1), copy, ...units.slice(i + 1)];
     update(updated);
     setActiveIndex(i + 1);
+    if (source.dictionary && descrMap[source.dictionary]) {
+      setDescrMap(prev => ({
+        ...prev,
+        [copy.dictionary]: {
+          ...prev[source.dictionary],
+          name: `${prev[source.dictionary]?.name || copy.dictionary} Copy`,
+        },
+      }));
+    }
   };
 
   const handleChange = (unit) => {
@@ -530,6 +556,16 @@ export default function UnitEditorPage() {
             >
               {copied ? <CheckCircle2 className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
               {copied ? 'Copied!' : 'Copy unit'}
+            </button>
+          )}
+          {active && (
+            <button
+              onClick={() => handleDuplicate(activeIndex)}
+              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title="Duplicate selected unit with unique type and dictionary keys"
+            >
+              <Copy className="w-3 h-3" />
+              Duplicate unit
             </button>
           )}
           {modeldb && (

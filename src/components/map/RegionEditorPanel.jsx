@@ -411,7 +411,7 @@ export default function RegionEditorPanel({
 
               <Field label="Type">
                 <div className="flex gap-2">
-                  {['city', 'castle'].map(t => (
+                  {['city'].map(t => (
                     <label key={t} className="flex items-center gap-1.5 cursor-pointer">
                       <input type="radio" name="settl_type" value={t}
                         checked={(strat.planSet || 'default') === t || (t === 'city' && (strat.planSet || 'default') === 'default')}

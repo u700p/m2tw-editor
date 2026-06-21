@@ -132,8 +132,6 @@ function parseDescrSmFactions(text) {
         custom_battle_availability: 'yes',
         can_sap: 'no',
         prefers_naval_invasions: 'no',
-        can_have_princess: 'yes',
-        has_family_tree: 'yes',
         can_horde: false,
         horde_min_units: 0,
         horde_max_units: 0,
@@ -171,8 +169,10 @@ function parseDescrSmFactions(text) {
       case 'custom_battle_availability':current.custom_battle_availability = val;break;
       case 'can_sap':current.can_sap = val;break;
       case 'prefers_naval_invasions':current.prefers_naval_invasions = val;break;
-      case 'can_have_princess':current.can_have_princess = val;break;
-      case 'has_family_tree':current.has_family_tree = val;break;
+      case 'can_have_princess':
+      case 'has_princess':
+      case 'has_family_tree':
+      case 'can_have_family_tree':break;
       case 'horde_min_units':current.can_horde = true;current.horde_min_units = +val || 0;break;
       case 'horde_max_units':current.horde_max_units = +val || 0;break;
       case 'horde_max_units_reduction_every_horde':current.horde_max_units_reduction_every_horde = +val || 0;break;
@@ -246,9 +246,7 @@ function serialiseDescrSmFactions(factions) {
     ...(f.horde_units || []).map((u, idx) => `horde_unit${T4}${u}${idx === 0 && f.can_horde ? ' ; general_unit required' : ''}`)] :
     []),
     `can_sap${T}${f.can_sap}`,
-    `prefers_naval_invasions\t\t${f.prefers_naval_invasions}`,
-    `can_have_princess${T3}${f.can_have_princess}`,
-    `has_family_tree${T4}${f.has_family_tree}`].
+    `prefers_naval_invasions\t\t${f.prefers_naval_invasions}`].
     filter((r) => r !== null);
     return rows.join('\n');
   };
@@ -456,8 +454,8 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
               <Input className="h-6 text-[11px] px-2 flex-1 font-mono bg-slate-700 border-slate-600 text-slate-100" value={draft.shadow_faction ?? ''} onChange={(e) => set('shadow_faction', e.target.value)} placeholder="e.g. england" />
             </div>
           }
-          <SelectOrInput label="Culture" value={draft.culture} onChange={(v) => set('culture', v)} options={cultures} placeholder="e.g. northern_european" />
-          <SelectOrInput label="Religion" value={draft.religion} onChange={(v) => set('religion', v)} options={religions} placeholder="e.g. catholic" />
+          <SelectOrInput label="Culture" value={draft.culture} onChange={(v) => set('culture', v)} options={cultures} placeholder="e.g. roman" />
+          <SelectOrInput label="Religion" value={draft.religion} onChange={(v) => set('religion', v)} options={religions} placeholder="e.g. pagan" />
         </section>
 
         <section className="space-y-2">
@@ -502,8 +500,6 @@ function FactionDetail({ faction, onChange, cultures, religions, eduUnits, onSav
           <YesNo label="Custom battle availability" value={draft.custom_battle_availability} onChange={(v) => set('custom_battle_availability', v)} />
           <YesNo label="Can sap" value={draft.can_sap} onChange={(v) => set('can_sap', v)} />
           <YesNo label="Prefers naval invasions" value={draft.prefers_naval_invasions} onChange={(v) => set('prefers_naval_invasions', v)} />
-          <YesNo label="Can have princess" value={draft.can_have_princess} onChange={(v) => set('can_have_princess', v)} />
-          <YesNo label="Has family tree" value={draft.has_family_tree} onChange={(v) => set('has_family_tree', v)} />
         </section>
 
         <section className="space-y-2">
@@ -719,8 +715,6 @@ export default function FactionsEditor() {
       custom_battle_availability: 'yes',
       can_sap: 'no',
       prefers_naval_invasions: 'no',
-      can_have_princess: 'yes',
-      has_family_tree: 'yes',
       can_horde: false,
       horde_min_units: 0,
       horde_max_units: 0,

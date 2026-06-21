@@ -107,7 +107,7 @@ export default function UnitEditor({ unit, onChange, descr, onDescrChange, unitI
               <Field label="banner unit" tooltip="Optional secondary banner identifier.">
                 <TextInput value={unit.banner_unit} onChange={v => set('banner_unit', v)} mono placeholder="e.g. dragon_standard" />
               </Field>
-              <Field label="banner holy" tooltip="Banner shown during crusade/jihad. Set to none to omit.">
+              <Field label="banner holy" tooltip="Rome units normally use none here.">
                 <SelectInput value={unit.banner_holy} onChange={v => set('banner_holy', v)} options={BANNER_HOLY} />
               </Field>
             </Section>

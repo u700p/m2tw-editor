@@ -33,7 +33,7 @@ function parseBuildingBlock(lines, i) {
 }
 
 // ─── Settlement block parser ───────────────────────────────────────────────────
-// Called when we are at the line AFTER "settlement" or "settlement castle"
+// Called when we are at the line AFTER "settlement".
 function parseSettlementBlock(lines, startI, lineStartOverride) {
   // skip to opening brace
   let i = startI;
@@ -101,7 +101,7 @@ function parseCharacterLine(line, lineIndex) {
     coreLine = 'character ' + line.slice(sfm[0].length);
   }
 
-  const m = coreLine.match(/^character\s+(.+?),\s*(named character|general|admiral|spy|merchant|diplomat|priest|assassin|princess|heretic|witch|inquisitor)\s*,?\s*(male|female)?,?\s*(leader|heir)?,?\s*age\s+(\d+),\s*x\s+(\d+),\s*y\s+(\d+)(.*)/i);
+  const m = coreLine.match(/^character\s+(.+?),\s*(named character|general|admiral|spy|diplomat|assassin)\s*,?\s*(male|female)?,?\s*(leader|heir)?,?\s*age\s+(\d+),\s*x\s+(\d+),\s*y\s+(\d+)(.*)/i);
   if (!m) return null;
 
   const fullName = m[1].trim();
@@ -324,12 +324,11 @@ export function parseDescrStrat(text) {
 
         // Settlement block
         if (/^settlement(\s+castle)?$/i.test(fl)) {
-          const isCastle = /castle/i.test(fl);
           const { settlement, endIndex } = parseSettlementBlock(lines, i + 1, i);
           settlement.id       = itemId++;
           settlement.faction  = faction.name;
           settlement.category = 'settlement';
-          settlement.castle   = isCastle;
+          settlement.castle   = false;
           faction.settlements.push(settlement);
           items.push(settlement);
           i = endIndex + 1;
@@ -533,7 +532,7 @@ function generateSettlementBlock(s, indent = '') {
   // NOTE: opening brace is on the SAME line as settlement to avoid any stray
   // lines being inserted between "settlement" and "{" during splice operations.
   const lines = [
-    `${indent}${s.castle ? 'settlement castle' : 'settlement'}`,
+    `${indent}settlement`,
     `${indent}{`,
     `${ind2}level ${s.level}`,
     `${ind2}region ${s.region}`,

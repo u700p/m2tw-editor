@@ -146,7 +146,6 @@ export default function NewRegionForm({ factionColors, onAdd, onCancel, edbData,
     b: Math.floor(Math.random() * 200) + 30,
     faction: '',
     factionCreator: '',
-    castle: false,
     level: 'village',
     population: 400,
     yearFounded: 0,
@@ -300,15 +299,6 @@ export default function NewRegionForm({ factionColors, onAdd, onCancel, edbData,
         )}
       </div>
 
-      {/* Castle + Level */}
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-          <input type="checkbox" checked={draft.castle}
-            onChange={e => setDraft(d => ({ ...d, castle: e.target.checked }))}
-            className="w-3 h-3 accent-amber-500" />
-          <span className="text-[10px] text-slate-300 font-semibold">Castle settlement</span>
-        </label>
-      </div>
       <div>
         <span className="text-[9px] text-slate-500">Settlement Level</span>
         <select value={draft.level} onChange={e => setDraft(d => ({ ...d, level: e.target.value }))}

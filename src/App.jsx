@@ -24,8 +24,7 @@ import CampaignSettings from './pages/CampaignSettings';
 import MinorFiles from './pages/MinorFiles';
 import NewMapEditor from './pages/NewMapEditor';
 import BattleModelsEditor from './pages/BattleModelsEditor';
-import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import RomeTools from './pages/RomeTools';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -35,30 +34,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
-const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
-
-  // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  // Handle authentication errors
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
-    }
-  }
-
-  // Render the main app
+const LocalApp = () => {
   return (
     <Routes>
       <Route path="/" element={
@@ -97,6 +73,7 @@ const AuthenticatedApp = () => {
       <Route path="/MinorFiles" element={<LayoutWrapper currentPageName="MinorFiles"><MinorFiles /></LayoutWrapper>} />
       <Route path="/NewMapEditor" element={<LayoutWrapper currentPageName="NewMapEditor"><NewMapEditor /></LayoutWrapper>} />
       <Route path="/BattleModelsEditor" element={<LayoutWrapper currentPageName="BattleModelsEditor"><BattleModelsEditor /></LayoutWrapper>} />
+      <Route path="/RomeTools" element={<LayoutWrapper currentPageName="RomeTools"><RomeTools /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -106,14 +83,12 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <AuthenticatedApp />
-        </Router>
-        <Toaster />
-      </QueryClientProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClientInstance}>
+      <Router>
+        <LocalApp />
+      </Router>
+      <Toaster />
+    </QueryClientProvider>
   )
 }
 

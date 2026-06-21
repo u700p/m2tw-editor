@@ -248,8 +248,6 @@ export default function SmFactionEditor() {
               ['custom_battle_availability', 'Custom battle available'],
               ['can_sap',                    'Can sap'],
               ['prefer_naval_invasions',     'Prefer naval invasions'],
-              ['has_princess',               'Has princess'],
-              ['can_have_princess',          'Can have princess'],
             ].map(([k, lbl]) => (
               <BoolRow key={k} label={lbl} value={form[k]} onChange={v => set(k, v)} />
             ))}

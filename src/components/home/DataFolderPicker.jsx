@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, CheckCircle2, FileText, Image, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { FolderOpen, CheckCircle2, FileText, Image, ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from 'lucide-react';
 
 const CATEGORY_LABELS = {
   text:           { label: 'Game Data Files',         defaultOn: true,  icon: FileText },
@@ -79,6 +79,18 @@ function detectUiFolders(files) {
 
 function fkey(f) { return f.webkitRelativePath || f.name; }
 
+function mergeFileLists(existing, incoming) {
+  const map = new Map();
+  for (const file of existing || []) map.set(fkey(file), file);
+  for (const file of incoming || []) map.set(fkey(file), file);
+  return [...map.values()];
+}
+
+function detectRootFolder(files) {
+  const rel = files.find(f => f.webkitRelativePath)?.webkitRelativePath || '';
+  return rel ? rel.replace(/\\/g, '/').split('/')[0] : 'selected folder';
+}
+
 // Categories that support individual file selection
 const INDIVIDUAL_SELECT_CATS = new Set(['text', 'strings_bin', 'images_terrain']);
 
@@ -92,11 +104,14 @@ export default function DataFolderPicker({ onLoad, loading }) {
   const [selectedUiFolders, setSelectedUiFolders] = useState(new Set());
   const [expandedCampaign, setExpandedCampaign] = useState(new Set());
   const [expandedUiFolder, setExpandedUiFolder] = useState(new Set());
+  const [folderSelections, setFolderSelections] = useState([]);
 
   const handleFolderSelect = (e) => {
-    const files = Array.from(e.target.files || []);
+    const incoming = Array.from(e.target.files || []);
     e.target.value = '';
-    if (files.length === 0) return;
+    if (incoming.length === 0) return;
+
+    const files = mergeFileLists(scanned?.allFiles || [], incoming);
 
     const byCategory = summarizeFiles(files);
     const { direct: directCampaigns, custom: customCampaigns } = detectCampaignFolders(files);
@@ -119,6 +134,19 @@ export default function DataFolderPicker({ onLoad, loading }) {
     setExpanded({});
     setExpandedCampaign(new Set());
     setExpandedUiFolder(new Set());
+    setFolderSelections(prev => [...prev, { name: detectRootFolder(incoming), count: incoming.length }]);
+  };
+
+  const handleClear = () => {
+    setScanned(null);
+    setChecked({});
+    setCheckedFiles(new Set());
+    setExpanded({});
+    setSelectedCampaigns(new Set());
+    setSelectedUiFolders(new Set());
+    setExpandedCampaign(new Set());
+    setExpandedUiFolder(new Set());
+    setFolderSelections([]);
   };
 
   const toggleCat = (cat) => {
@@ -233,15 +261,26 @@ export default function DataFolderPicker({ onLoad, loading }) {
         <Button asChild variant="outline"
           className="w-full h-11 border-primary/30 text-primary hover:bg-primary/10 pointer-events-none gap-2">
           <span>
-            <FolderOpen className="w-4 h-4" />
-            Browse to <code className="text-xs font-mono">…\data\</code> folder
+            {scanned ? <Plus className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
+            {scanned ? 'Add another folder' : 'Browse to'} <code className="text-xs font-mono">…\data\</code>
           </span>
         </Button>
       </label>
 
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="secondary" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => inputRef.current?.click()}>
+          <FolderOpen className="w-3.5 h-3.5" />
+          Add Rome/mod folder
+        </Button>
+        <Button type="button" variant="ghost" size="sm" className="h-8 text-[11px] gap-1.5" onClick={handleClear} disabled={!scanned}>
+          <Trash2 className="w-3.5 h-3.5" />
+          Clear scan
+        </Button>
+      </div>
+
       {!scanned && (
         <p className="text-[10px] text-muted-foreground text-center">
-          After selecting the folder, a checklist will appear so you can choose what to load.
+          Select vanilla <code className="font-mono">Rome Total War Gold\data</code>, then add a mod data folder to merge both in one load.
         </p>
       )}
 
@@ -251,8 +290,19 @@ export default function DataFolderPicker({ onLoad, loading }) {
             <span className="text-[11px] font-semibold text-foreground">
               {scanned.allFiles.length} files detected
             </span>
-            <span className="text-[10px] text-muted-foreground">{totalSelected} selected</span>
+            <span className="text-[10px] text-muted-foreground">{folderSelections.length} folders · {totalSelected} selected</span>
           </div>
+
+          {folderSelections.length > 0 && (
+            <div className="px-3 py-1.5 border-b border-border bg-background/80 flex flex-wrap gap-1">
+              {folderSelections.map((folder, idx) => (
+                <Badge key={`${folder.name}-${idx}`} variant="outline" className="h-5 text-[10px] max-w-full">
+                  <span className="truncate">{folder.name}</span>
+                  <span className="ml-1 text-muted-foreground">({folder.count})</span>
+                </Badge>
+              ))}
+            </div>
+          )}
 
           <div className="divide-y divide-border">
             {Object.entries(CATEGORY_LABELS).map(([cat, meta]) => {

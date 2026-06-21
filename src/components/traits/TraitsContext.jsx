@@ -195,6 +195,52 @@ export function TraitsProvider({ children }) {
     setIsDirty(true);
   }, []);
 
+  const duplicateTrait = useCallback((index) => {
+    let newIndex = null;
+    setTraitsData(prev => {
+      if (!prev?.traits?.[index]) return prev;
+      const source = prev.traits[index];
+      const names = new Set(prev.traits.map(t => t.name.toLowerCase()));
+      let newName = `${source.name}_copy`;
+      let n = 2;
+      while (names.has(newName.toLowerCase())) newName = `${source.name}_copy_${n++}`;
+      const remapKey = (key) => key ? (key.includes(source.name) ? key.replaceAll(source.name, newName) : `${newName}_${key}`) : key;
+      const copy = JSON.parse(JSON.stringify(source));
+      copy.name = newName;
+      copy.antiTraits = [];
+      copy.levels = (copy.levels || []).map(level => ({
+        ...level,
+        name: remapKey(level.name),
+        description: remapKey(level.description),
+        effectsDescription: remapKey(level.effectsDescription),
+        gainMessage: remapKey(level.gainMessage),
+        loseMessage: remapKey(level.loseMessage),
+        epithet: remapKey(level.epithet),
+      }));
+      const duplicatedTriggers = (prev.triggers || [])
+        .filter(t => (t.affects || []).some(a => a.trait === source.name))
+        .map(t => ({
+          ...JSON.parse(JSON.stringify(t)),
+          name: remapKey(t.name),
+          affects: (t.affects || []).map(a => a.trait === source.name ? { ...a, trait: newName } : a),
+        }));
+      newIndex = (prev.traits || []).length;
+      setTextData(textPrev => {
+        const next = { ...(textPrev || {}) };
+        for (const level of source.levels || []) {
+          for (const key of [level.description, level.effectsDescription, level.gainMessage, level.loseMessage, level.epithet].filter(Boolean)) {
+            next[remapKey(key)] = next[key] || '';
+          }
+        }
+        return next;
+      });
+      return { ...prev, traits: [...(prev.traits || []), copy], triggers: [...(prev.triggers || []), ...duplicatedTriggers] };
+    });
+    setIsDirty(true);
+    if (newIndex !== null) setSelectedTrait(newIndex);
+    return newIndex;
+  }, []);
+
   const deleteTrait = useCallback((index) => {
     setTraitsData(prev => {
       const traits = prev.traits.filter((_, i) => i !== index);
@@ -266,7 +312,7 @@ export function TraitsProvider({ children }) {
       isDirty, selectedTrait,
       setSelectedTrait,
       loadTraitsFile, loadTextFile,
-      updateTrait, addTrait, deleteTrait,
+      updateTrait, addTrait, duplicateTrait, deleteTrait,
       updateTrigger, addTrigger, deleteTrigger,
       revertTraits, saveTraits,
       updateTextEntry, renameTextKey,

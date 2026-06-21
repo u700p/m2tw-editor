@@ -32,7 +32,6 @@ export const AUTOCOMPLETE_ITEMS = [
   { label: 'StartOfTurn',                 type: 'event',     params: '',                                         desc: 'At the start of the turn' },
   { label: 'AgentCreated',                type: 'event',     params: '',                                         desc: 'When an agent is created' },
   { label: 'AgentDies',                   type: 'event',     params: '',                                         desc: 'When an agent dies' },
-  { label: 'MerchantBankrupt',            type: 'event',     params: '',                                         desc: 'When a merchant goes bankrupt' },
 
   // ── CONDITIONS ──────────────────────────────────────────────────────────────
   { label: 'FactionIsLocal',              type: 'condition', params: '',                                         desc: 'True if the faction is player-controlled' },
@@ -56,12 +55,9 @@ export const AUTOCOMPLETE_ITEMS = [
   { label: 'CharacterName',              type: 'condition', params: '<character_name>',                         desc: 'Checks the character name' },
   { label: 'CharacterType',              type: 'condition', params: '<character_type>',                         desc: 'Checks the character type' },
   { label: 'IsGeneral',                   type: 'condition', params: '',                                         desc: 'True if the character is a general' },
-  { label: 'IsMerchant',                  type: 'condition', params: '',                                         desc: 'True if the character is a merchant' },
   { label: 'IsSpy',                       type: 'condition', params: '',                                         desc: 'True if the character is a spy' },
   { label: 'IsAssassin',                  type: 'condition', params: '',                                         desc: 'True if the character is an assassin' },
-  { label: 'IsPriest',                    type: 'condition', params: '',                                         desc: 'True if the character is a priest' },
   { label: 'IsAdmiral',                   type: 'condition', params: '',                                         desc: 'True if the character is an admiral' },
-  { label: 'IsPrincess',                  type: 'condition', params: '',                                         desc: 'True if the character is a princess' },
   { label: 'CharacterInRegion',           type: 'condition', params: '<region_name>',                            desc: 'True if the character is in the specified region' },
   { label: 'FactionInRegion',             type: 'condition', params: '<faction> <region_name>',                  desc: 'True if the faction controls the region' },
   { label: 'SettlementLevel',             type: 'condition', params: '<operator> <level>',                       desc: 'Checks the settlement level' },

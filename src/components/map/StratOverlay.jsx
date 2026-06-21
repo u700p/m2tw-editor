@@ -9,8 +9,7 @@ import { SETTLEMENT_LEVEL_ICONS } from './stratParser';
 
 export const ITEM_ICON = {
   'named character': '⚔️', general: '⚔️', admiral: '⚓', spy: '👁️',
-  merchant: '💰', diplomat: '📜', priest: '🙏', assassin: '🗡️',
-  princess: '👑', heretic: '🔥', witch: '🧙', inquisitor: '⚖️',
+  diplomat: '📜', assassin: '🗡️',
   fortification: '🏰', resource: '💎',
   coal: '⬛', fish: '🐟', amber: '🟡', furs: '🦊',
   gold: '🪙', silver: '⚗️', iron: '⚙️', timber: '🪵',

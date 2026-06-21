@@ -3,12 +3,22 @@
  */
 
 export const SETTLEMENT_TYPES = [
-  'village', 'moot_and_bailey', 'town', 'wooden_castle',
-  'large_town', 'castle', 'city', 'fortress',
-  'large_city', 'citadel', 'huge_city'
+  'village', 'town', 'large_town', 'city', 'large_city', 'huge_city'
 ];
 
-export const AGENT_TYPES = ['spy', 'assassin', 'diplomat', 'admiral', 'merchant', 'priest'];
+const LEGACY_M2_SETTLEMENT_TYPES = new Set([
+  'moot_and_bailey', 'wooden_castle', 'castle', 'fortress', 'citadel'
+]);
+
+export const AGENT_TYPES = ['spy', 'assassin', 'diplomat', 'admiral'];
+
+const GLOBAL_MODEL_LINES = [
+  'symbol\tdata/models_strat/residences/symbol.CAS',
+  'siege\tdata/models_strat/residences/siege_icon.CAS',
+  '',
+  'blockade\t\t\tdata/models_strat/residences/blockade_icon.CAS',
+  '',
+];
 
 function parsePath(str) {
   // "data/some/path.CAS,    anim_name" → { path, anim }
@@ -71,7 +81,7 @@ export function parseDescrCulturesFull(text) {
 
     // Init all settlement types
     for (const st of SETTLEMENT_TYPES) {
-      culture.settlements[st] = { normal: '', normalAnim: '', card: '' };
+      culture.settlements[st] = { normal: '', normalAnim: '', walls: [], card: '' };
     }
 
     // Init agents
@@ -136,16 +146,18 @@ export function parseDescrCulturesFull(text) {
           else if (braceDepth === 1) { currentType = null; }
           continue;
         }
-        if (braceDepth === 1 && SETTLEMENT_TYPES.includes(line)) {
+        if (braceDepth === 1 && (SETTLEMENT_TYPES.includes(line) || LEGACY_M2_SETTLEMENT_TYPES.has(line))) {
           currentType = line;
           continue;
         }
-        if (braceDepth === 2 && currentType) {
+        if (braceDepth === 2 && currentType && culture.settlements[currentType]) {
           let m;
           if ((m = line.match(/^normal\s+(.+)/i))) {
             const { path, anim } = parsePath(m[1]);
             culture.settlements[currentType].normal = path;
             culture.settlements[currentType].normalAnim = anim;
+          } else if ((m = line.match(/^wall\s+(.+)/i))) {
+            culture.settlements[currentType].walls.push(parsePath(m[1]));
           } else if ((m = line.match(/^card\s+(\S+)/i))) {
             culture.settlements[currentType].card = m[1];
           }
@@ -178,10 +190,13 @@ export function serializeDescrCulturesFull(cultures) {
     lines.push(`rebel_standard_index\t${c.rebelStandardIndex}`);
     lines.push('{');
     for (const st of SETTLEMENT_TYPES) {
-      const s = c.settlements[st] || { normal: '', normalAnim: '', card: '' };
+      const s = c.settlements[st] || { normal: '', normalAnim: '', walls: [], card: '' };
       lines.push(st);
       lines.push('{');
       lines.push(`\tnormal\t\t\t\t${s.normal}${s.normalAnim ? ',\t\t' + s.normalAnim : ''}`);
+      for (const wall of (s.walls || [])) {
+        lines.push(`\twall\t\t\t\t${wall.path}${wall.anim ? ',\t\t' + wall.anim : ''}`);
+      }
       lines.push(`\tcard\t\t\t\t${s.card}`);
       lines.push('}');
     }
@@ -207,12 +222,12 @@ export function serializeDescrCulturesFull(cultures) {
     // Agents
     for (const ag of AGENT_TYPES) {
       const a = c.agents[ag] || { tga: `${ag}.tga`, infoTga: `${ag}_info.tga`, tga2: `${ag}.tga`, cost: 200, n1: 1, n2: 1 };
-      const extraTab = ag === 'spy' || ag === 'assassin' || ag === 'diplomat' || ag === 'merchant' || ag === 'admiral' ? '\t' : '';
+      const extraTab = ag === 'spy' || ag === 'assassin' || ag === 'diplomat' || ag === 'admiral' ? '\t' : '';
       lines.push(`${ag}\t\t${extraTab}${a.tga}\t\t${a.infoTga}\t\t\t${a.tga2}\t${a.cost}\t${a.n1}\t${a.n2}`);
     }
 
     blocks.push(lines.join('\n'));
   }
 
-  return blocks.join('\n') + '\n' + SEP + '\n';
+  return GLOBAL_MODEL_LINES.join('\n') + blocks.join('\n') + '\n' + SEP + '\n';
 }

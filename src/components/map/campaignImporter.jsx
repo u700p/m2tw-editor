@@ -103,7 +103,7 @@ function regionsToEntities(regionsData, stratData) {
       religions: religionsArr,
       // from strat settlement block
       faction: strat.faction ?? '',
-      castle: strat.castle ?? false,
+      castle: false,
       population: strat.population ?? 400,
       level: strat.level ? ['village','town','large_town','city','large_city','huge_city'].indexOf(strat.level) : 0,
       buildings: strat.upgrades ?? [],

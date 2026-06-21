@@ -11,8 +11,8 @@ import TriggerEditor from '../shared/TriggerEditor';
 import ValidationPanel from '../shared/ValidationPanel';
 import { buildEffectsDescription, validateTraitsData } from '../shared/effectsDescriptionBuilder';
 
-const CHARACTER_TYPES = ['family', 'spy', 'assassin', 'diplomat', 'admiral', 'merchant', 'priest', 'all'];
-const CULTURES = ['northern_european', 'eastern_european', 'southern_european', 'greek', 'middle_eastern', 'mesoamerican'];
+const CHARACTER_TYPES = ['family', 'spy', 'assassin', 'diplomat', 'admiral', 'all'];
+const CULTURES = ['roman', 'barbarian', 'greek', 'carthaginian', 'eastern', 'egyptian'];
 
 const inputCls = 'h-8 text-xs font-mono mt-1 text-white bg-background';
 const inputSmCls = 'h-7 text-xs mt-0.5 text-white bg-background';

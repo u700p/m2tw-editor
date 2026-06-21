@@ -10,7 +10,7 @@ import { CAPABILITY_LIBRARY } from './CapabilityLibrary';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const AGENT_TYPES = ['merchant', 'spy', 'assassin', 'diplomat', 'princess', 'priest', 'imam', 'heretic', 'witch', 'inquisitor'];
+const AGENT_TYPES = ['spy', 'assassin', 'diplomat', 'admiral'];
 
 // Derive sets for classification from the library
 const CIVILIAN_CODES = new Set(
@@ -240,7 +240,7 @@ export default function CapabilityEditor({ capabilities, onChange, edbData }) {
   const addRecruitPool = () => onChange([...capabilities, {
     type: 'recruit_pool', unitName: '', initialPool: 1, replenishRate: 0.5, maxPool: 4, experience: 0, requirements: []
   }]);
-  const addAgent = () => onChange([...capabilities, { type: 'agent', agentType: 'merchant', value: 1 }]);
+  const addAgent = () => onChange([...capabilities, { type: 'agent', agentType: 'spy', value: 1 }]);
   const addCivilian = () => onChange([...capabilities, {
     type: 'bonus', identifier: 'happiness_bonus', needsBonus: true, value: 1, requirements: []
   }]);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAncillaries } from './AncillariesContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Copy } from 'lucide-react';
 
 const TYPE_COLORS = {
   Security: 'text-blue-400',
@@ -25,7 +25,7 @@ const TYPE_COLORS = {
 };
 
 export default function AncillaryList() {
-  const { ancData, selectedAnc, setSelectedAnc, addAncillary, deleteAncillary, getText } = useAncillaries();
+  const { ancData, selectedAnc, setSelectedAnc, addAncillary, duplicateAncillary, deleteAncillary, getText } = useAncillaries();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
@@ -92,6 +92,13 @@ export default function AncillaryList() {
                     {anc.type}{anc.unique ? ' · Unique' : ''}{anc.transferable ? ' · Transferable' : ''}
                   </div>
                 </div>
+                <button
+                  onClick={e => { e.stopPropagation(); duplicateAncillary(anc._idx); }}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-accent rounded shrink-0"
+                  title="Duplicate ancillary"
+                >
+                  <Copy className="w-3 h-3 text-blue-400" />
+                </button>
                 <button
                   onClick={e => { e.stopPropagation(); deleteAncillary(anc._idx); }}
                   className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded shrink-0"

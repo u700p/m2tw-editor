@@ -3,9 +3,9 @@
 export const CATEGORIES = ['infantry', 'cavalry', 'siege', 'ship'];
 export const CLASSES = ['light', 'heavy', 'missile', 'spearmen'];
 export const VOICE_TYPES = ['Heavy', 'Light', 'General'];
-export const ACCENTS = ['English', 'Scottish', 'French', 'German', 'Mediterranean', 'East_European', 'Arabic', 'Mongolian', 'Chinese', 'Japanese', 'Dutch', 'Portuguese', 'Spanish'];
+export const ACCENTS = ['Roman', 'Barbarian', 'Greek', 'Carthaginian', 'Eastern', 'Egyptian'];
 export const BANNER_FACTIONS = ['main_spear', 'main_infantry', 'main_cavalry', 'main_missile'];
-export const BANNER_HOLY = ['crusade', 'jihad', 'none'];
+export const BANNER_HOLY = ['none'];
 export const UNIT_ATTRIBUTES = [
   'sea_faring','hide_forest','hide_improved_forest','hide_anywhere','frighten_foot',
   'frighten_mounted','can_run_amok','general_unit','general_unit_upgrade','cantabrian_circle',
@@ -15,18 +15,18 @@ export const UNIT_ATTRIBUTES = [
   'rapid_reload','thrown','javelin','ghost_unit','no_custom',
 ];
 export const WEAPON_TYPES = ['melee','missile'];
-export const WEAPON_TECH = ['melee_simple','melee_blade','melee_blade_slash','melee_blade_thrust','missile','missile_mechanical','missile_gunpowder','siege_missile'];
+export const WEAPON_TECH = ['simple','blade','melee_simple','melee_blade','melee_blade_slash','melee_blade_thrust','missile','missile_mechanical','siege_missile'];
 export const DAMAGE_TYPES = ['piercing','slashing','blunt','fire'];
-export const WEAPON_NAMES = ['none','spear','sword','axe','mace','hammer','pike','lance','halberd','club','bow','crossbow','catapult_shot','ballista_bolt','trebuchet_shot','fire_bolt','carbine_bullet','pistol_bullet','arquebus_bullet'];
-export const PROJECTILE_TYPES = ['no','arrow','bolt','rock','heavy_rock','quicklime','fire_pot','carbine_bullet','pistol_bullet','arquebus_bullet'];
+export const WEAPON_NAMES = ['none','knife','spear','sword','axe','mace','hammer','pike','lance','club','bow','catapult_shot','ballista_bolt','fire_bolt','javelin','pilum'];
+export const PROJECTILE_TYPES = ['no','arrow','bolt','rock','heavy_rock','quicklime','fire_pot','javelin','pilum'];
 export const ARMOUR_MATERIALS = ['flesh','leather','metal','plate'];
 export const MENTAL_TYPES = ['impetuous','normal','calm','steady'];
 export const MENTAL_TRAINING = ['untrained','trained','highly_trained','disciplined'];
-export const FORMATIONS = ['square','wedge','phalanx','horde','testudo','schiltron','shield_wall','column','line'];
+export const FORMATIONS = ['square','wedge','phalanx','horde','testudo','column','line'];
 export const OWNERSHIP_FACTIONS = [
-  'slave','aztecs','england','france','hre','denmark','spain','portugal','milan','venice',
-  'papal_states','sicily','byzantium','russia','moors','turks','mongols','timurids',
-  'poland','hungary','scotland','rebels','aztec_rebels','seljuk_rebels','norway',
+  'romans_julii','romans_brutii','romans_scipii','romans_senate','egypt','seleucid',
+  'carthage','parthia','pontus','gauls','germans','britons','greek_cities','macedon',
+  'dacia','numidia','scythia','spain','thrace','armenia','slave',
 ];
 
 function parseKV(line) {
@@ -68,7 +68,7 @@ function parseUnit(lines) {
     stat_cost: '1, 500, 175, 100, 100, 500, 4, 100',
     armour_ug_levels: '3',
     armour_ug_models: '',
-    ownership: ['england'],
+    ownership: ['romans_julii'],
     era0: [], era1: [], era2: [],
     info_pics: '',
     card_pic: '',
@@ -256,7 +256,7 @@ export function createDefaultUnit() {
     stat_cost: '1, 500, 175, 100, 100, 500, 4, 100',
     armour_ug_levels: '3',
     armour_ug_models: 'New_Unit',
-    ownership: ['england'],
+    ownership: ['romans_julii'],
     era0: [], era1: [], era2: [],
     info_pics: '', card_pic: '', card_info: '',
   };

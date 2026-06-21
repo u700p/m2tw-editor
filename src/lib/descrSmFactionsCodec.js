@@ -1,5 +1,5 @@
 /**
- * Parser and serializer for M2TW descr_sm_factions.txt
+ * Parser and serializer for Rome: Total War descr_sm_factions.txt
  *
  * Format – each faction block:
  *
@@ -19,26 +19,25 @@
  *       custom_battle_availability <yes|no>
  *       can_sap                    <yes|no>
  *       prefer_naval_invasions     <yes|no>
- *       has_princess               <yes|no>
- *       can_have_princess          <yes|no>
  *       ai_label                   <value>
  *       economic_ai                <value>
  *       military_ai                <value>
  *       cai_*                      <float>   (zero or more CAI tuning lines)
  *   }
  *
- * Semicolons begin line comments; braces may be on the same line as "faction".
+ * Semicolons begin line comments. Rome files usually do not wrap faction
+ * blocks in braces; some derived files do. This codec accepts both shapes,
+ * but serializes the plain Rome layout.
  */
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 export const SM_CULTURES = [
-  'northern_european', 'middle_eastern', 'eastern_european',
-  'greek', 'southern_european', 'mesoamerican', 'eastern',
+  'roman', 'barbarian', 'greek', 'carthaginian', 'eastern', 'egyptian',
 ];
 
 export const SM_RELIGIONS = [
-  'catholic', 'orthodox', 'islam', 'pagan',
+  'pagan', 'christian', 'zoroastrian',
 ];
 
 export const SM_AI_LABELS = [
@@ -96,8 +95,6 @@ function parseFactionBlock(lines, startIndex) {
     custom_battle_availability: false,
     can_sap: false,
     prefer_naval_invasions: false,
-    has_princess: false,
-    can_have_princess: false,
     ai_label: '',
     economic_ai: 'balanced',
     military_ai: 'napoleon',
@@ -107,20 +104,28 @@ function parseFactionBlock(lines, startIndex) {
 
   let i = startIndex + 1;
 
-  // Advance to opening brace
+  // Advance to an optional opening brace. RTW files normally have none.
+  let hasBrace = false;
   while (i < lines.length) {
     const l = lines[i].replace(/;.*$/, '').trim();
-    if (l.includes('{')) { i++; break; }
+    if (/^faction\s+\S+/i.test(l)) break;
+    if (l.includes('{')) { hasBrace = true; i++; break; }
+    if (l && !/^;/.test(lines[i].trim())) break;
     i++;
   }
+  if (!hasBrace) i = startIndex + 1;
 
-  // Parse until matching closing brace
+  // Parse until matching closing brace or, for RTW files, the next faction.
   while (i < lines.length) {
     const raw = lines[i];
     const line = raw.replace(/;.*$/, '').trim();
 
-    if (line === '}') {
+    if (hasBrace && line === '}') {
       return { faction, endIndex: i + 1 };
+    }
+
+    if (!hasBrace && /^faction\s+\S+/i.test(line)) {
+      return { faction, endIndex: i };
     }
 
     if (!line) { i++; continue; }
@@ -147,8 +152,11 @@ function parseFactionBlock(lines, startIndex) {
       case 'custom_battle_availability': faction.custom_battle_availability = yesNo(rest); break;
       case 'can_sap':                    faction.can_sap = yesNo(rest); break;
       case 'prefer_naval_invasions':     faction.prefer_naval_invasions = yesNo(rest); break;
-      case 'has_princess':               faction.has_princess = yesNo(rest); break;
-      case 'can_have_princess':          faction.can_have_princess = yesNo(rest); break;
+      case 'has_princess':
+      case 'can_have_princess':
+      case 'has_family_tree':
+      case 'can_have_family_tree':
+        break;
       case 'ai_label':                   faction.ai_label = rest; break;
       case 'economic_ai':                faction.economic_ai = rest; break;
       case 'military_ai':                faction.military_ai = rest; break;
@@ -191,8 +199,9 @@ export function parseDescrSmFactions(text) {
 // ─── Serializer ──────────────────────────────────────────────────────────────
 
 export function serializeDescrSmFactions(factions) {
+  const SEP = ';'.repeat(126);
   return factions.map(f => {
-    const lines = [`faction ${f.name}`, '{'];
+    const lines = [`faction\t\t\t\t\t\t${f.name}`];
     const add = (k, v) => lines.push(`\t${k.padEnd(34)}${v}`);
 
     if (f.culture)       add('culture',      f.culture);
@@ -209,8 +218,6 @@ export function serializeDescrSmFactions(factions) {
     add('custom_battle_availability', f.custom_battle_availability ? 'yes' : 'no');
     add('can_sap',                    f.can_sap                    ? 'yes' : 'no');
     add('prefer_naval_invasions',     f.prefer_naval_invasions     ? 'yes' : 'no');
-    add('has_princess',               f.has_princess               ? 'yes' : 'no');
-    add('can_have_princess',          f.can_have_princess          ? 'yes' : 'no');
     if (f.ai_label)     add('ai_label',     f.ai_label);
     if (f.economic_ai)  add('economic_ai',  f.economic_ai);
     if (f.military_ai)  add('military_ai',  f.military_ai);
@@ -218,9 +225,8 @@ export function serializeDescrSmFactions(factions) {
     for (const [k, v] of Object.entries(f._cai || {})) add(k, String(v));
     for (const ex of (f._extra || []))                  lines.push(ex);
 
-    lines.push('}');
     return lines.join('\n');
-  }).join('\n\n');
+  }).join(`\n${SEP}\n\n`) + `\n${SEP}\n`;
 }
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
@@ -228,10 +234,10 @@ export function serializeDescrSmFactions(factions) {
 export function createDefaultSmFaction(name = 'new_faction') {
   return {
     name,
-    culture:  'northern_european',
-    religion: 'catholic',
-    symbol:        'models_strat/symbol_northern_european.cas',
-    rebel_symbol:  'models_strat/rebel_symbol_northern_european.cas',
+    culture:  'roman',
+    religion: '',
+    symbol:        `models_strat/symbol_${name}.CAS`,
+    rebel_symbol:  'models_strat/symbol_slaves.CAS',
     primary_colour:   { r: 128, g: 128, b: 128 },
     secondary_colour: { r: 255, g: 255, b: 255 },
     loading_logo: '',
@@ -242,8 +248,6 @@ export function createDefaultSmFaction(name = 'new_faction') {
     custom_battle_availability: false,
     can_sap:                    false,
     prefer_naval_invasions:     false,
-    has_princess:               false,
-    can_have_princess:          false,
     ai_label:     'aggressive',
     economic_ai:  'balanced',
     military_ai:  'napoleon',

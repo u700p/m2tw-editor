@@ -6,37 +6,34 @@ export const BUILDING_TRAITS = [
   'happiness_bonus', 'law_bonus', 'trade_base_income_bonus', 'trade_level_bonus',
   'trade_fleet', 'taxable_income_bonus', 'mine_resource', 'farming_level',
   'road_level', 'free_upkeep', 'armour', 'weapon_simple', 'weapon_bladed',
-  'weapon_missile', 'weapon_siege', 'weapon_other', 'weapon_naval_gunpowder',
+  'weapon_missile', 'weapon_siege', 'weapon_other',
   'recruitment_slots', 'agent', 'agent_limit', 'population_health_bonus',
   'population_growth_bonus', 'stage_games', 'stage_races', 'construction_cost_bonus_military',
   'construction_cost_bonus_religious', 'construction_cost_bonus_defensive',
   'construction_cost_bonus_other', 'construction_time_bonus_military',
   'construction_time_bonus_religious', 'construction_time_bonus_defensive',
   'construction_time_bonus_other', 'religious_belief', 'religious_order',
-  'archer_bonus', 'cavalry_bonus', 'heavy_cavalry_bonus', 'gun_bonus',
+  'archer_bonus', 'cavalry_bonus', 'heavy_cavalry_bonus',
   'navy_bonus', 'religious_conversion', 'body_guard',
 ];
 
-export const SETTLEMENT_TYPES = ['city', 'castle'];
+export const SETTLEMENT_TYPES = ['city'];
 export const SETTLEMENT_LEVELS = ['village', 'town', 'large_town', 'city', 'large_city', 'huge_city'];
 export const MATERIALS = ['wooden', 'stone'];
 
 export const CULTURES = [
-  'northern_european', 'mesoamerican', 'middle_eastern',
-  'eastern_european', 'greek', 'southern_european'
+  'roman', 'barbarian', 'greek', 'carthaginian', 'eastern', 'egyptian'
 ];
 
 export const FACTIONS = [
-  'england', 'scotland', 'france', 'hre', 'denmark', 'spain', 'portugal',
-  'milan', 'venice', 'papal_states', 'sicily', 'poland', 'russia', 'hungary',
-  'byzantium', 'moors', 'egypt', 'turks', 'mongols', 'timurids', 'aztecs',
-  'Normans', 'Saxons'
+  'romans_julii', 'romans_brutii', 'romans_scipii', 'romans_senate',
+  'egypt', 'seleucid', 'carthage', 'parthia', 'pontus', 'gauls',
+  'germans', 'britons', 'greek_cities', 'macedon', 'dacia', 'numidia',
+  'scythia', 'spain', 'thrace', 'armenia', 'slave'
 ];
 
 export const HIDDEN_RESOURCES_DEFAULT = [
-  'sparta', 'rome', 'italy', 'america', 'atlantic', 'explorers_guild',
-  'swordsmiths_guild', 'woodsmens_guild', 'teutonic_knights_chapter_house',
-  'knights_of_santiago_chapter_house', 'crusade', 'jihad', 'arguin',
+  'italy', 'sparta', 'sicily', 'africa', 'asia', 'egypt', 'greece',
   'horde_target', 'no_pirates', 'no_brigands'
 ];
 
@@ -330,13 +327,14 @@ function parseBuilding(lines, startIndex) {
           continue;
         }
         if (lLine === '{') { levelDepth++; i++; continue; }
-        // Format: level_name (city|castle) [requires ...]  OR just check first token against levelsPart
+        // Format: level_name city [requires ...]  OR just check first token against levelsPart.
+        // Old M2 files may contain "castle"; normalize it to Rome's city settlement type.
         const firstToken = lLine.split(/\s+/)[0];
         if (levelsPart.includes(firstToken)) {
           // extract settlement type and requires string
           const rest = lLine.slice(firstToken.length).trim();
           const stMatch = rest.match(/^(city|castle)(.*)/);
-          const settlementType = stMatch ? stMatch[1] : null;
+          const settlementType = stMatch ? (stMatch[1].toLowerCase() === 'castle' ? 'city' : stMatch[1]) : null;
           const requiresStr = stMatch ? stMatch[2].trim() : rest;
           const level = parseLevelBlock(lines, i, firstToken, settlementType, requiresStr);
           building.levels.push(level.data);
@@ -616,7 +614,7 @@ function serializeLevel(level) {
     ? serializeRequirements(level.requirements)
     : '';
   
-  const stPart = level.settlementType ? ` ${level.settlementType}` : '';
+  const stPart = level.settlementType ? ` ${level.settlementType === 'castle' ? 'city' : level.settlementType}` : '';
   // M2TW format uses two spaces before 'requires'
   const reqPart = reqSerialized ? `  requires ${reqSerialized}` : '';
   let out = `        ${level.name}${stPart}${reqPart}\n        {\n`;
@@ -699,7 +697,7 @@ export function createDefaultBuilding(name) {
     levels: [{
       name: name ? name + '_1' : 'new_level_1',
       settlementType: 'city',
-      requirements: [{ type: 'factions', values: ['northern_european', 'southern_european'], connector: null }],
+      requirements: [{ type: 'factions', values: ['romans_julii', 'romans_brutii'], connector: null }],
       convertTo: null,
       capabilities: [
         { type: 'bonus', identifier: 'happiness_bonus', needsBonus: true, value: 1 }
@@ -849,7 +847,7 @@ export function createDefaultLevel(baseName, index) {
   return {
     name: baseName + '_' + (index + 1),
     settlementType: 'city',
-    requirements: [{ type: 'factions', values: ['northern_european', 'southern_european'], connector: null }],
+    requirements: [{ type: 'factions', values: ['romans_julii', 'romans_brutii'], connector: null }],
     convertTo: null,
     capabilities: [],
     factionCapability: [],

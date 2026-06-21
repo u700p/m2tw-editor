@@ -1,24 +1,17 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { encodeStringsBin } from '../components/strings/stringsBinCodec';
 import { getStringsBinStore, setStringsBinStore } from '../lib/stringsBinStore';
 import { Globe, FolderOpen, Download, Plus, Trash2, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseDescrCulturesFull, serializeDescrCulturesFull, SETTLEMENT_TYPES, AGENT_TYPES } from '../components/cultures/culturesParser';
 
-// Automatically add/update the 4 expanded.txt string entries for a culture
-// in the shared strings bin store (expanded.txt.strings.bin).
+// Automatically add/update the expanded.txt display entry for a culture.
 function upsertCultureStrings(cultureName) {
   const key = cultureName.toUpperCase();
   const display = cultureName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const newEntries = [
-    { key,                          value: display   },
-    { key: `EMT_${key}_PRIEST`,     value: 'Priest'  },
-    { key: `EMT_${key}_PRIEST_1`,   value: 'Bishop'  },
-    { key: `EMT_${key}_PRIEST_2`,   value: 'Cardinal'},
-  ];
+  const newEntries = [{ key, value: display }];
   const store = getStringsBinStore();
-  const BIN_NAME = 'expanded.txt.strings.bin';
-  const existing = store[BIN_NAME] || { entries: [], magic1: 2, magic2: 2048 };
+  const BIN_NAME = 'expanded.txt';
+  const existing = store[BIN_NAME] || { entries: [], sourceFormat: 'txt' };
   // Replace or append each key
   const entryMap = {};
   for (const e of existing.entries) entryMap[e.key] = e.value;
@@ -52,15 +45,10 @@ function PathInput({ value, onChange, placeholder, className }) {
 // ── Settlements tab ───────────────────────────────────────────────────────────
 const SETTLEMENT_LABELS = {
   village: 'Village (Town lvl 1)',
-  moot_and_bailey: 'Moot & Bailey (Castle lvl 1)',
   town: 'Town (Town lvl 2)',
-  wooden_castle: 'Wooden Castle (Castle lvl 2)',
   large_town: 'Large Town (Town lvl 3)',
-  castle: 'Castle (Castle lvl 3)',
   city: 'City (Town lvl 4)',
-  fortress: 'Fortress (Castle lvl 4)',
   large_city: 'Large City (Town lvl 5)',
-  citadel: 'Citadel (Castle lvl 5)',
   huge_city: 'Huge City (Town lvl 6)',
 };
 
@@ -68,11 +56,18 @@ function SettlementsTab({ culture, onChange }) {
   return (
     <div className="space-y-2">
       {SETTLEMENT_TYPES.map(st => {
-        const s = culture.settlements[st] || { normal: '', normalAnim: '', card: '' };
+        const s = culture.settlements[st] || { normal: '', normalAnim: '', walls: [], card: '' };
         const set = (field, val) => onChange({
           ...culture,
           settlements: { ...culture.settlements, [st]: { ...s, [field]: val } }
         });
+        const setWall = (idx, field, val) => {
+          const walls = [...(s.walls || [])];
+          walls[idx] = { ...(walls[idx] || { path: '', anim: '' }), [field]: val };
+          set('walls', walls);
+        };
+        const addWall = () => set('walls', [...(s.walls || []), { path: '', anim: '' }]);
+        const removeWall = (idx) => set('walls', (s.walls || []).filter((_, i) => i !== idx));
         return (
           <div key={st} className="rounded border border-slate-700/40 bg-slate-900/30 p-2 space-y-1.5">
             <p className="text-[10px] font-semibold text-amber-400 font-mono">{st}
@@ -85,6 +80,23 @@ function SettlementsTab({ culture, onChange }) {
               <PathInput value={s.normalAnim} onChange={v => set('normalAnim', v)} placeholder="settlement_eastern_level_1" />
               <span className="text-[9px] text-slate-500">card (.tga)</span>
               <PathInput value={s.card} onChange={v => set('card', v)} placeholder="data/ui/.../cities/....tga" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-slate-500">wall models</span>
+                <button onClick={addWall} className="text-[9px] px-1.5 py-0.5 rounded border border-slate-600/40 bg-slate-800 text-slate-300 hover:text-white">
+                  Add wall
+                </button>
+              </div>
+              {(s.walls || []).map((wall, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-1 items-center">
+                  <PathInput value={wall.path} onChange={v => setWall(idx, 'path', v)} placeholder="data/models_strat/residences/...wall..." />
+                  <PathInput value={wall.anim} onChange={v => setWall(idx, 'anim', v)} placeholder="settlement_..._walled..." />
+                  <button onClick={() => removeWall(idx)} className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-950/30">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         );
@@ -232,10 +244,10 @@ function generateOffmapPort(culture) {
 function generateExpandedStrings(culture) {
   const key = culture.name.toUpperCase();
   const display = culture.name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  return `{${key}}${display}\n{EMT_${key}_PRIEST}Priest\n{EMT_${key}_PRIEST_1}Bishop\n{EMT_${key}_PRIEST_2}Cardinal`;
+  return `{${key}}${display}`;
 }
 
-function CopyBlock({ label, text, onDownload }) {
+function CopyBlock({ label, text, onDownload, downloadLabel = 'Download .txt' }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     copyText(text);
@@ -249,7 +261,7 @@ function CopyBlock({ label, text, onDownload }) {
         <div className="flex gap-1">
           {onDownload && (
             <button onClick={onDownload} className="text-[9px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 transition-colors">
-              Download .bin
+              {downloadLabel}
             </button>
           )}
           <button onClick={handleCopy} className="text-[9px] px-1.5 py-0.5 rounded border border-slate-600/40 bg-slate-800 text-slate-300 hover:text-white transition-colors">
@@ -278,31 +290,15 @@ function ExtrasTab({ culture, onChange }) {
   const settlementText = generateOffmapSettlement(culture);
   const portText = generateOffmapPort(culture);
 
-  const handleDownloadBin = () => {
-    const key = culture.name.toUpperCase();
-    const display = culture.name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    const entries = [
-      { key, value: display },
-      { key: `EMT_${key}_PRIEST`,   value: 'Priest' },
-      { key: `EMT_${key}_PRIEST_1`, value: 'Bishop' },
-      { key: `EMT_${key}_PRIEST_2`, value: 'Cardinal' },
-    ];
-    try {
-      const buf = encodeStringsBin(entries);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([buf]));
-      a.download = `${culture.name}_expanded.txt.strings.bin`;
-      a.click();
-    } catch(e) { alert('Could not generate .strings.bin: ' + e.message); }
-  };
+  const handleDownloadText = () => downloadText(expandedText + '\n', `${culture.name}_expanded.txt`);
 
   return (
     <div className="space-y-4">
       {/* expanded.txt */}
       <div className="rounded border border-slate-700/40 bg-slate-900/30 p-2.5 space-y-2">
         <p className="text-[10px] font-semibold text-amber-400">1. expanded.txt string entries</p>
-        <p className="text-[9px] text-slate-500">Add these to <code className="font-mono text-[9px] bg-slate-800 px-1 rounded">data/text/expanded.txt</code> (or merge into its <code className="font-mono text-[9px]">.strings.bin</code>). Without them the game crashes when clicking a settlement.</p>
-        <CopyBlock label="expanded.txt" text={expandedText} onDownload={handleDownloadBin} />
+        <p className="text-[9px] text-slate-500">Add this to <code className="font-mono text-[9px] bg-slate-800 px-1 rounded">data/text/expanded.txt</code>. Without it the game can crash when clicking a settlement.</p>
+        <CopyBlock label="expanded.txt" text={expandedText} onDownload={handleDownloadText} />
       </div>
 
       {/* descr_offmap_models — settlement */}
@@ -399,7 +395,7 @@ export default function CulturesEditor() {
     const updated = [...cultures, base];
     setCultures(updated);
     setSelectedIdx(updated.length - 1);
-    // Automatically add string entries to expanded.txt.strings.bin
+    // Automatically add string entries to expanded.txt.
     upsertCultureStrings(base.name);
   };
 
@@ -516,7 +512,6 @@ export default function CulturesEditor() {
                   <div className="rounded border border-amber-500/20 bg-amber-900/10 p-2.5 text-[10px] text-amber-300/80 leading-relaxed space-y-1">
                     <p className="font-semibold">After adding a new culture:</p>
                     <p>• Add <code className="font-mono text-[9px] bg-amber-900/30 px-1 rounded">{'{'}{selected.name.toUpperCase()}{'}'}</code> to <code className="font-mono text-[9px]">data/text/expanded.txt</code> with the display name.</p>
-                    <p>• Add <code className="font-mono text-[9px] bg-amber-900/30 px-1 rounded">{'{'}{`EMT_${selected.name.toUpperCase()}_PRIEST`}{'}'}</code>, <code className="font-mono text-[9px]">_PRIEST_1</code>, <code className="font-mono text-[9px]">_PRIEST_2</code> entries too.</p>
                     <p>• Assign the culture to factions in <code className="font-mono text-[9px]">descr_sm_factions.txt</code>.</p>
                     <p>• Game supports max 1 new culture added (beyond vanilla 7).</p>
                   </div>

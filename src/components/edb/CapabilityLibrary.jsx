@@ -8,8 +8,8 @@ import { Search, Plus, Info, ChevronDown, ChevronRight } from 'lucide-react';
 // Code column is the literal string to emit; Range is the integer argument range; Description is the tooltip
 export const CAPABILITY_LIBRARY = [
   // ── Agent ──
-  { type: 'Agent', subtype: 'Agent limit',      code: 'agent_limit',      args: '[spy|assassin|merchant|admiral|princess|diplomat|priest|heretic|witch|inquisitor]', range: '[int]',  description: "Adds to the faction's total number of recruitable agents" },
-  { type: 'Agent', subtype: 'Agent recruitment',code: 'agent',            args: '[spy|assassin|merchant|admiral|princess|diplomat|priest|heretic|witch|inquisitor]', range: '[int]',  description: 'Allows recruitment of agents: named character, spy, assassin, merchant, admiral, princess, diplomat, priest, heretic, witch, inquisitor' },
+  { type: 'Agent', subtype: 'Agent limit',      code: 'agent_limit',      args: '[spy|assassin|diplomat|admiral]', range: '[int]',  description: "Adds to the faction's total number of recruitable Rome agents" },
+  { type: 'Agent', subtype: 'Agent recruitment',code: 'agent',            args: '[spy|assassin|diplomat|admiral]', range: '[int]',  description: 'Allows recruitment of Rome agents: spy, assassin, diplomat, admiral' },
 
   // ── Civilian Bonus › Construction bonus ──
   { type: 'Civilian Bonus', subtype: 'Construction bonus (cost, defensive)', code: 'construction_cost_bonus_defensive', args: 'bonus', range: '1-100', description: "Changes cost of core buildings by ∓1% per increment" },

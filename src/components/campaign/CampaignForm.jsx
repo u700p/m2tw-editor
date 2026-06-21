@@ -5,10 +5,10 @@ import { Label } from '@/components/ui/label';
 
 const CAMPAIGN_TEMPLATES = [
   { id: 'imperial', label: 'Imperial Campaign (copy)', desc: 'Full world map, all factions' },
-  { id: 'crusades', label: 'Crusades', desc: 'Focus on Holy Land and Mediterranean' },
-  { id: 'british_isles', label: 'British Isles', desc: 'England, Scotland, Wales, Ireland' },
-  { id: 'iberia', label: 'Iberian Peninsula', desc: 'Reconquista setting' },
-  { id: 'blank', label: 'Blank (from scratch)', desc: 'Empty campaign — you provide all map files' },
+  { id: 'eastern_wars', label: 'Eastern Wars', desc: 'Greek, Egyptian, Seleucid, and Pontic focus' },
+  { id: 'britannia', label: 'Britannia', desc: 'Britons, Gauls, Germans, and Romans' },
+  { id: 'iberia', label: 'Iberia', desc: 'Spain, Carthage, Gauls, and Rome' },
+  { id: 'blank', label: 'Blank (from scratch)', desc: 'Empty campaign - you provide all map files' },
 ];
 
 const DEFAULT_WIN_CONDITIONS = `; Short Campaign
@@ -27,7 +27,7 @@ export default function CampaignForm({ initial, onSubmit, onCancel, isDuplicate 
   const [template, setTemplate] = useState(initial?.template || 'blank');
   const [description, setDescription] = useState(initial?.description || '');
   const [winConditions, setWinConditions] = useState(initial?.winConditions || DEFAULT_WIN_CONDITIONS);
-  const [factions, setFactions] = useState(initial?.factions || 'england,france,hre,spain,venice,milan,sicily,papal_states,byzantium,egypt,moors,turks,russia,poland,hungary,denmark,norway,portugal,scotland,milan');
+  const [factions, setFactions] = useState(initial?.factions || 'romans_julii,romans_brutii,romans_scipii,romans_senate,egypt,seleucid,carthage,parthia,gauls,germans,britons,greek_cities,macedon,pontus,armenia,dacia,numidia,scythia,spain,thrace,slave');
   const [errors, setErrors] = useState({});
 
   const validate = () => {

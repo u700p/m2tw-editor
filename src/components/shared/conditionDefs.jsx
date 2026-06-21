@@ -105,7 +105,7 @@ export const CONDITION_DEFS = [
   { key: 'IsTorturer',            label: 'IsTorturer',             argType: 'bool' },
   { key: 'EndedInSiege',          label: 'EndedInSiege',           argType: 'bool' },
   { key: 'Random',                label: 'Random',                 argType: 'int',          hint: 'percentage (0–100)' },
-  { key: 'AgentType',             label: 'AgentType',              argType: 'agent',        hint: 'spy/assassin/merchant/...' },
+  { key: 'AgentType',             label: 'AgentType',              argType: 'agent',        hint: 'spy/assassin/diplomat/...' },
   { key: 'Attribute',             label: 'Attribute',              argType: 'compare_attribute', hint: 'TraitAttribute >= value' },
   { key: 'CharacterReligion',     label: 'CharacterReligion',      argType: 'religion' },
 ];
@@ -199,8 +199,7 @@ export const WHEN_TO_TEST_OPTIONS = [
 ];
 
 export const RELIGION_OPTIONS = [
-  'catholic', 'orthodox', 'islam', 'pagan', 'heretic',
-  'jewish', 'zoroastrian', 'hindu', 'buddhist',
+  'pagan', 'christian', 'zoroastrian',
 ];
 
 export const CULTURE_OPTIONS = [
@@ -211,8 +210,7 @@ export const CULTURE_OPTIONS = [
 export const COMPARE_OPS = ['>=', '<=', '>', '<', '='];
 
 export const AGENT_TYPES = [
-  'spy', 'assassin', 'merchant', 'diplomat', 'princess',
-  'priest', 'heretic', 'witch', 'admiral', 'general',
+  'spy', 'assassin', 'diplomat', 'admiral', 'general',
 ];
 
 // Load faction names from localStorage (descr_sm_factions.txt parsed on Home page)

@@ -273,7 +273,7 @@ function BuildingOverview({ building, edbData }) {
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-3">
             <div>
-              <Label className="text-[10px] text-muted-foreground">Convert To (castle/city equivalent)</Label>
+              <Label className="text-[10px] text-muted-foreground">Convert To</Label>
               <div className="mt-1">
                 <SearchableSelect
                   value={building.convertTo || '__none__'}

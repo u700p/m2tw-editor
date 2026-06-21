@@ -604,7 +604,7 @@ export default function CampaignMap() {
       region: draft.regionName,
       faction: draft.faction || 'slave',
       factionCreator: draft.factionCreator || draft.faction || 'slave',
-      castle: draft.castle || false,
+      castle: false,
       level: draft.level || 'village',
       population: draft.population || 400,
       yearFounded: draft.yearFounded || 0,

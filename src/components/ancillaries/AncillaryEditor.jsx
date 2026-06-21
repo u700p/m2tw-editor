@@ -15,7 +15,7 @@ const ANCILLARY_TYPES = [
   'Health', 'Item', 'Magic', 'Military', 'Money', 'Naval',
   'Pet', 'Politics', 'Relic', 'Religion', 'Security', 'Sex',
 ];
-const CULTURES = ['northern_european', 'eastern_european', 'southern_european', 'greek', 'middle_eastern', 'mesoamerican'];
+const CULTURES = ['roman', 'barbarian', 'greek', 'carthaginian', 'eastern', 'egyptian'];
 
 const inputCls = 'h-8 text-xs font-mono mt-1 text-white bg-background';
 const selectCls = 'w-full h-8 mt-1 text-xs bg-card border border-border rounded px-2 text-white';

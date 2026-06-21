@@ -2,20 +2,17 @@ import React, { useState, useMemo } from 'react';
 import { Info, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { parseWinConditions } from './stratParser';
 
-const AI_LABELS = ['default', 'catholic', 'papal_faction', 'slave_faction'];
-const ECONOMIC_AI = ['balanced', 'religious', 'trader', 'comfortable', 'bureaucrat', 'craftsman', 'sailor', 'fortified'];
-const MILITARY_AI = ['smith', 'mao', 'genghis', 'stalin', 'napoleon', 'henry', 'caesar', 'richard', 'heinrich', 'subotai', 'knud', 'guy', 'doge', 'robert', 'wyvadslaw', 'vlad', 'roger', 'alfonso', 'arslan', 'tahar', 'saladin', 'tzar'];
+const AI_LABELS = ['default', 'slave_faction'];
+const ECONOMIC_AI = ['balanced', 'trader', 'comfortable', 'bureaucrat', 'craftsman', 'sailor', 'fortified'];
+const MILITARY_AI = ['smith', 'mao', 'genghis', 'stalin', 'napoleon', 'caesar', 'subotai'];
 
 const AI_LABEL_INFO = {
   default: 'Standard AI behavior. Most factions use this.',
-  catholic: 'AI behaves like a Catholic faction — will join crusades, interact with the Pope, and consider religious politics.',
-  papal_faction: 'Reserved for the Papal States. Has unique diplomacy with all Catholic factions.',
   slave_faction: 'Special "slave" faction used for independent cities and brigands. No political relationships.',
 };
 
 const ECON_AI_INFO = {
   balanced: 'Tries to build a mix of economic, religious, and military buildings.',
-  religious: 'Prioritizes population_growth and population_loyalty bonuses.',
   trader: 'Focuses on trade and income-generating buildings.',
   comfortable: 'Balanced with a preference for comfort/prosperity buildings.',
   bureaucrat: 'Favors administrative efficiency; builds governance structures.',
@@ -30,23 +27,8 @@ const MILITARY_AI_INFO = {
   genghis: 'Prefers cavalry-heavy forces.',
   stalin: 'Mass infantry with siege focus.',
   napoleon: 'Combined arms with artillery emphasis.',
-  henry: 'Balanced medieval army with knight emphasis.',
   caesar: 'Roman-style combined arms.',
-  richard: 'Crusader-style heavy infantry + knights.',
-  heinrich: 'Germanic heavy cavalry preference.',
   subotai: 'Mounted archer preference.',
-  knud: 'Norse/Viking style infantry.',
-  guy: 'Crusader light cavalry.',
-  doge: 'Merchant republic naval/trade bias.',
-  robert: 'Norman combined arms.',
-  wyvadslaw: 'Slavic infantry preference.',
-  vlad: 'Eastern European cavalry.',
-  roger: 'Sicilian mixed forces.',
-  alfonso: 'Iberian reconquista style.',
-  arslan: 'Turkish light cavalry.',
-  tahar: 'North African desert fighters.',
-  saladin: 'Saracen heavy cavalry + archers.',
-  tzar: 'Russian heavy infantry.',
 };
 
 function InfoTooltip({ text }) {
@@ -149,7 +131,7 @@ function FactionRow({ faction, allFactionNames, regionNames, units, onUpdate, fa
           <div className="space-y-1.5">
             <div>
               <div className="text-[9px] text-slate-500 mb-0.5 flex items-center">
-                AI Label <InfoTooltip text="Defines the faction's diplomatic and religious behavior. 'catholic' joins crusades and interacts with the Pope. 'papal_faction' is for the Papacy only." />
+                AI Label <InfoTooltip text="Defines broad faction diplomatic behavior. Rome campaigns normally use default or slave_faction." />
               </div>
               <SearchableSelect
                 value={fWithMovies.aiLabel}

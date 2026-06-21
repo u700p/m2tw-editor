@@ -201,6 +201,43 @@ export function AncillariesProvider({ children }) {
     setIsDirty(true);
   }, []);
 
+  const duplicateAncillary = useCallback((index) => {
+    let newIndex = null;
+    setAncData(prev => {
+      if (!prev?.ancillaries?.[index]) return prev;
+      const source = prev.ancillaries[index];
+      const names = new Set(prev.ancillaries.map(a => a.name.toLowerCase()));
+      let newName = `${source.name}_copy`;
+      let n = 2;
+      while (names.has(newName.toLowerCase())) newName = `${source.name}_copy_${n++}`;
+      const remapKey = (key) => key ? (key.includes(source.name) ? key.replaceAll(source.name, newName) : `${newName}_${key}`) : key;
+      const copy = {
+        ...JSON.parse(JSON.stringify(source)),
+        name: newName,
+        description: remapKey(source.description),
+        effectsDescription: remapKey(source.effectsDescription),
+        excludedAncillaries: [],
+      };
+      const duplicatedTriggers = (prev.triggers || [])
+        .filter(t => t.acquireAncillary?.name === source.name)
+        .map(t => ({
+          ...JSON.parse(JSON.stringify(t)),
+          name: remapKey(t.name),
+          acquireAncillary: { ...(t.acquireAncillary || {}), name: newName },
+        }));
+      newIndex = (prev.ancillaries || []).length;
+      setTextData(textPrev => ({
+        ...(textPrev || {}),
+        [copy.description]: textPrev?.[source.description] || '',
+        [copy.effectsDescription]: textPrev?.[source.effectsDescription] || '',
+      }));
+      return { ...prev, ancillaries: [...(prev.ancillaries || []), copy], triggers: [...(prev.triggers || []), ...duplicatedTriggers] };
+    });
+    setIsDirty(true);
+    if (newIndex !== null) setSelectedAnc(newIndex);
+    return newIndex;
+  }, []);
+
   const deleteAncillary = useCallback((index) => {
     setAncData(prev => {
       const ancillaries = prev.ancillaries.filter((_, i) => i !== index);
@@ -273,7 +310,7 @@ export function AncillariesProvider({ children }) {
       isDirty, selectedAnc,
       setSelectedAnc,
       loadAncFile, loadTextFile, loadTgaImages,
-      updateAncillary, addAncillary, deleteAncillary,
+      updateAncillary, addAncillary, duplicateAncillary, deleteAncillary,
       updateTrigger, addTrigger, deleteTrigger,
       revertAncillaries, saveAncillaries,
       updateTextEntry, renameTextKey,

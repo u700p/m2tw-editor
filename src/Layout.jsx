@@ -6,9 +6,10 @@ import { RefDataProvider } from './components/edb/RefDataContext';
 import { TraitsProvider } from './components/traits/TraitsContext';
 import { AncillariesProvider } from './components/ancillaries/AncillariesContext';
 import { ModDataProvider } from './components/shared/ModDataContext';
-import { Castle, Download, Home, Shield, Package, Swords, Map, Globe, Volume2, FileText, ScrollText, Gem, Image } from 'lucide-react';
+import { Castle, Download, Home, Shield, Package, Swords, Map, Globe, Volume2, FileText, ScrollText, Gem, Image, Wrench } from 'lucide-react';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import romeLogo from './assets/rome/rome-logo.png';
+import romeHeader from './assets/rome/rome-header.jpg';
 
 // localStorage keys that indicate a given editor has data loaded
 const NAV_DATA_KEYS = {
@@ -24,6 +25,7 @@ const NAV_DATA_KEYS = {
   UnitCardGenerator: ['m2tw_unitcard_entries'],
   FactionsEditor:    ['m2tw_factions_file'],
   StringsBinEditor:  ['m2tw_edb_txt_file'],
+  RomeTools:          ['rtw_tools_last_output'],
 };
 
 function useLoadedPages() {
@@ -57,6 +59,7 @@ const navItems = [
 { name: 'Traits Editor', icon: Shield, page: 'TraitsEditor' },
 { name: 'Ancillaries', icon: Gem, page: 'AncillariesEditor' },
 { name: 'Unit Editor', icon: Swords, page: 'UnitEditor' },
+{ name: 'Rome Tools', icon: Wrench, page: 'RomeTools' },
 { name: 'Battle Models', icon: Package, page: 'BattleModelsEditor' },
 { name: 'Campaign Map', icon: Map, page: 'CampaignMap' },
 { name: 'Script Editor', icon: ScrollText, page: 'ScriptEditor' },
@@ -82,7 +85,7 @@ export default function Layout({ children, currentPageName }) {
     <ModDataProvider>
         <div className="dark min-h-screen bg-background flex">
           <nav className="w-16 lg:w-56 border-r border-border bg-card flex flex-col shrink-0">
-            <div className="p-3 lg:p-4 border-b border-border">
+            <div className="p-3 lg:p-4 border-b border-border bg-cover bg-center relative overflow-hidden" style={{ backgroundImage: `linear-gradient(90deg, rgba(17, 14, 10, 0.95), rgba(17, 14, 10, 0.72)), url(${romeHeader})` }}>
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-lg bg-black/35 border border-primary/20 flex items-center justify-center overflow-hidden">
                   <img src={romeLogo} alt="Rome: Total War" className="w-9 h-auto" />

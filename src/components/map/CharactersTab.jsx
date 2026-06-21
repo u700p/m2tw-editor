@@ -38,11 +38,11 @@ function PortraitPreview({ name }) {
 }
 
 // Types that force female sex
-const FEMALE_ONLY_TYPES = new Set(['princess', 'witch']);
+const FEMALE_ONLY_TYPES = new Set([]);
 // Types that force male sex
-const MALE_ONLY_TYPES = new Set(['general', 'admiral', 'spy', 'merchant', 'diplomat', 'priest', 'assassin', 'heretic', 'inquisitor', 'named character']);
+const MALE_ONLY_TYPES = new Set(['general', 'admiral', 'spy', 'diplomat', 'assassin', 'named character']);
 // "family" type is both sexes, goes to character_record
-const ALL_CHARACTER_TYPES = ['general', 'admiral', 'spy', 'merchant', 'diplomat', 'priest', 'assassin', 'princess', 'heretic', 'witch', 'inquisitor', 'named character', 'family'];
+const ALL_CHARACTER_TYPES = ['general', 'admiral', 'spy', 'diplomat', 'assassin', 'named character', 'family'];
 // Only named character can have leader/heir role (generals/admirals cannot)
 const CAN_HAVE_ROLE = new Set(['named character']);
 const RECORD_ROLES = ['never_a_leader', 'past_leader', 'past_heir', 'leader', 'heir'];
@@ -168,7 +168,7 @@ function CharacterRow({ char, allFactions, descrNames, namesDisplayMap, traitsLi
 
   const fullName = [c.name, c.surname].filter(Boolean).join(' ');
 
-  const typeIcon = isFamily ? '👨‍👩‍👧' : c.charType === 'admiral' ? '⚓' : c.charType === 'witch' ? '🧙🏻‍♀️' : c.charType === 'heretic' ? '🧙‍♂️' : c.charType === 'inquisitor' ? '🔥' : c.charType === 'diplomat' ? '📜' : c.charType === 'spy' ? '🕵️' : c.charType === 'priest' ? '🛐' : c.charType === 'princess' ? '👑' : c.charType === 'merchant' ? '💰' : c.charType === 'assassin' ? '🗡️': '⚔️';
+  const typeIcon = isFamily ? '👨‍👩‍👧' : c.charType === 'admiral' ? '⚓' : c.charType === 'diplomat' ? '📜' : c.charType === 'spy' ? '🕵️' : c.charType === 'assassin' ? '🗡️': '⚔️';
 
   return (
     <div ref={rowRef} className={`rounded border ${c._isNew ? 'border-amber-500/50 bg-amber-900/10' : 'border-slate-700/40 bg-slate-900/20'}`}>

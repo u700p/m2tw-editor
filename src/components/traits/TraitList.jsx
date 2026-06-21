@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useTraits } from './TraitsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Shield } from 'lucide-react';
+import { Plus, Search, Trash2, Shield, Copy } from 'lucide-react';
 
 
-const CHARACTER_FILTERS = ['family', 'spy', 'assassin', 'diplomat', 'admiral', 'merchant', 'priest', 'all'];
+const CHARACTER_FILTERS = ['family', 'spy', 'assassin', 'diplomat', 'admiral', 'all'];
 
 export default function TraitList() {
-  const { traitsData, selectedTrait, setSelectedTrait, addTrait, deleteTrait, getText } = useTraits();
+  const { traitsData, selectedTrait, setSelectedTrait, addTrait, duplicateTrait, deleteTrait, getText } = useTraits();
   const [search, setSearch] = useState('');
   const [charFilter, setCharFilter] = useState('');
 
@@ -31,8 +31,6 @@ export default function TraitList() {
     diplomat: 'text-green-400',
     admiral: 'text-cyan-400',
     all: 'text-purple-400',
-    merchant: 'text-yellow-400',
-    priest: 'text-orange-400',
   };
 
   return (
@@ -86,6 +84,13 @@ export default function TraitList() {
                     {trait.characters.join(', ')} · {trait.levels.length} level{trait.levels.length !== 1 ? 's' : ''}
                   </div>
                 </div>
+                <button
+                  onClick={e => { e.stopPropagation(); duplicateTrait(trait._idx); }}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-accent rounded shrink-0"
+                  title="Duplicate trait"
+                >
+                  <Copy className="w-3 h-3 text-blue-400" />
+                </button>
                 <button
                   onClick={e => { e.stopPropagation(); deleteTrait(trait._idx); }}
                   className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded shrink-0"
