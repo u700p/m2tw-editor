@@ -2,6 +2,8 @@
  * Full parser and serializer for descr_cultures.txt
  */
 
+import { toCRLF } from '@/lib/lineEndings';
+
 export const SETTLEMENT_TYPES = [
   'village', 'town', 'large_town', 'city', 'large_city', 'huge_city'
 ];
@@ -229,5 +231,5 @@ export function serializeDescrCulturesFull(cultures) {
     blocks.push(lines.join('\n'));
   }
 
-  return GLOBAL_MODEL_LINES.join('\n') + blocks.join('\n') + '\n' + SEP + '\n';
+  return toCRLF(GLOBAL_MODEL_LINES.join('\n') + blocks.join('\n') + '\n' + SEP + '\n');
 }

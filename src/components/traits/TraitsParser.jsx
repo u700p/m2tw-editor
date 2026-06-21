@@ -56,6 +56,7 @@ function parseTrait(lines, start) {
     antiTraits: [],
     levels: [],
     _comments: [],
+    extraLines: [],
   };
 
   let i = start + 1;
@@ -67,7 +68,11 @@ function parseTrait(lines, start) {
     // Next trait or trigger → stop
     if (line.startsWith('Trait ') || line.startsWith('Trigger ')) break;
     // Empty separator between traits
-    if (!line) { i++; continue; }
+    if (!line) {
+      if (raw.trim().startsWith(';')) trait.extraLines.push(raw);
+      i++;
+      continue;
+    }
 
     if (line.startsWith('Characters ')) {
       trait.characters = line.replace('Characters ', '').split(',').map(s => s.trim()).filter(Boolean);
@@ -84,6 +89,8 @@ function parseTrait(lines, start) {
       trait.levels.push(level);
       i = end;
       continue;
+    } else {
+      trait.extraLines.push(raw);
     }
 
     i++;
@@ -105,6 +112,7 @@ function parseTraitLevel(lines, start) {
     epithet: '',
     threshold: 0,
     effects: [],
+    extraLines: [],
   };
 
   let i = start + 1;
@@ -115,7 +123,11 @@ function parseTraitLevel(lines, start) {
 
     // Next level, trait, or trigger → stop
     if (line.startsWith('Level ') || line.startsWith('Trait ') || line.startsWith('Trigger ')) break;
-    if (!line) { i++; continue; }
+    if (!line) {
+      if (raw.trim().startsWith(';')) level.extraLines.push(raw);
+      i++;
+      continue;
+    }
 
     if (line.startsWith('Description ')) {
       level.description = line.replace('Description ', '').trim();
@@ -134,6 +146,8 @@ function parseTraitLevel(lines, start) {
       if (parts.length >= 2) {
         level.effects.push({ attribute: parts[0], value: parseInt(parts[1], 10) });
       }
+    } else {
+      level.extraLines.push(raw);
     }
 
     i++;
@@ -152,6 +166,7 @@ function parseTrigger(lines, start) {
     conditions: [],
     affects: [],
     rawLines: [],
+    extraLines: [],
   };
 
   let i = start + 1;
@@ -163,7 +178,11 @@ function parseTrigger(lines, start) {
     const line = raw.replace(/;.*$/, '').trim();
 
     if (line.startsWith('Trait ') || line.startsWith('Trigger ') || line.startsWith('Ancillary ')) break;
-    if (!line) { i++; continue; }
+    if (!line) {
+      if (raw.trim().startsWith(';')) trigger.extraLines.push(raw);
+      i++;
+      continue;
+    }
 
     if (line.startsWith('WhenToTest ')) {
       trigger.whenToTest = line.replace('WhenToTest ', '').trim();
@@ -176,6 +195,8 @@ function parseTrigger(lines, start) {
         value: parseInt(parts[1] || '0', 10),
         chance: parseInt(parts[3] || '100', 10),
       });
+    } else {
+      trigger.extraLines.push(raw);
     }
 
     i++;
@@ -215,6 +236,7 @@ export function serializeTraitsFile(data) {
     if (trait.antiTraits.length > 0) {
       lines.push(`    AntiTraits ${trait.antiTraits.join(', ')}`);
     }
+    for (const raw of (trait.extraLines || [])) lines.push(raw);
     lines.push('');
 
     for (const level of trait.levels) {
@@ -224,6 +246,7 @@ export function serializeTraitsFile(data) {
       if (level.gainMessage) lines.push(`        GainMessage ${level.gainMessage}`);
       if (level.loseMessage) lines.push(`        LoseMessage ${level.loseMessage}`);
       if (level.epithet) lines.push(`        Epithet ${level.epithet}`);
+      for (const raw of (level.extraLines || [])) lines.push(raw);
       lines.push(`        Threshold  ${level.threshold} `);
       lines.push('');
       for (const effect of level.effects) {
@@ -249,6 +272,8 @@ export function serializeTraitsFile(data) {
         lines.push(`    ${cond}`);
       }
       if (trigger.conditions && trigger.conditions.length > 0) lines.push('');
+      for (const raw of (trigger.extraLines || [])) lines.push(raw);
+      if (trigger.extraLines && trigger.extraLines.length > 0) lines.push('');
       for (const aff of (trigger.affects || [])) {
         lines.push(`    Affects ${aff.trait}  ${aff.value}  chance  ${aff.chance} `);
       }

@@ -1,5 +1,6 @@
 // EDB Parser - parses export_descr_buildings.txt into structured data
 import { parseTextLocFile, serializeTextLocFile } from '@/lib/textLocParser';
+import { toCRLF } from '@/lib/lineEndings';
 
 export const BUILDING_TRAITS = [
   'recruit_pool', 'wall_level', 'tower_level', 'gate_strength', 'gate_defences',
@@ -548,7 +549,7 @@ export function serializeEDB(edbData) {
     output += serializeBuilding(building);
   }
   
-  return output;
+  return toCRLF(output);
 }
 
 export function serializeBuilding(building) {

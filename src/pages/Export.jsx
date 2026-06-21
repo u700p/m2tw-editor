@@ -13,6 +13,7 @@ import JSZip from 'jszip';
 import ValidationDashboard from '../components/export/ValidationDashboard';
 import TriggerValidationPanel from '../components/export/TriggerValidationPanel';
 import CampaignPackagePicker from '../components/export/CampaignPackagePicker';
+import { toCRLF } from '@/lib/lineEndings';
 
 function getCampaigns() {
   try { const s = localStorage.getItem('m2tw_campaigns'); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -81,7 +82,7 @@ export default function Export() {
     const dataFolder = zip.folder(`${modName}/data`);
 
     if (edbData) {
-      const edbText = exportEDB().replace(/\n/g, '\r\n');
+      const edbText = toCRLF(exportEDB());
       dataFolder.file('export_descr_buildings.txt', edbText);
     }
 
@@ -93,7 +94,7 @@ export default function Export() {
         const binBuf = encodeStringsBin(entries, magic1, magic2);
         dataFolder.folder('text').file('export_buildings.txt.strings.bin', new Uint8Array(binBuf));
       } else {
-        dataFolder.folder('text').file('export_buildings.txt', exportTextFile().replace(/\n/g, '\r\n'));
+        dataFolder.folder('text').file('export_buildings.txt', toCRLF(exportTextFile()));
       }
     }
 
@@ -117,10 +118,11 @@ export default function Export() {
 
     // Export traits
     if (traitsData) {
-      dataFolder.file('export_descr_character_traits.txt', exportTraitsFile().replace(/\n/g, '\r\n'));
+      dataFolder.file('export_descr_character_traits.txt', toCRLF(exportTraitsFile()));
     }
     if (traitsTextData && Object.keys(traitsTextData).length > 0) {
       let traitsTextContent = exportTraitsTextFile();
+      if (typeof traitsTextContent === 'string') traitsTextContent = toCRLF(traitsTextContent);
       if (traitsTextContent instanceof ArrayBuffer) traitsTextContent = new Uint8Array(traitsTextContent);
       const traitsTextName = traitsTextFilename || 'export_VnVs.txt';
       dataFolder.folder('text').file(traitsTextName, traitsTextContent);
@@ -128,15 +130,16 @@ export default function Export() {
 
     // Export guilds
     if (hasGuilds) {
-      dataFolder.file('export_descr_guilds.txt', exportGuildsFile().replace(/\n/g, '\r\n'));
+      dataFolder.file('export_descr_guilds.txt', toCRLF(exportGuildsFile()));
     }
 
     // Export ancillaries
     if (ancData) {
-      dataFolder.file('export_descr_ancillaries.txt', exportAncFile().replace(/\n/g, '\r\n'));
+      dataFolder.file('export_descr_ancillaries.txt', toCRLF(exportAncFile()));
     }
     if (ancTextData && Object.keys(ancTextData).length > 0) {
       let ancTextContent = exportAncTextFile();
+      if (typeof ancTextContent === 'string') ancTextContent = toCRLF(ancTextContent);
       if (ancTextContent instanceof ArrayBuffer) ancTextContent = new Uint8Array(ancTextContent);
       const ancTextName = ancTextFilename || 'export_ancillaries.txt';
       dataFolder.folder('text').file(ancTextName, ancTextContent);
@@ -158,12 +161,12 @@ export default function Export() {
           }
         }
       } catch {}
-      campFolder.file('descr_strat.txt', stratText.replace(/\n/g, '\r\n'));
+      campFolder.file('descr_strat.txt', toCRLF(stratText));
     }
     if (campaigns.length > 0) {
       // Merge all campaign descriptions into one file
       const allDescs = campaigns.map(c => c.descriptions || '').join('\n');
-      dataFolder.folder('text').file('campaign_descriptions.txt', `¬\n${allDescs}`.replace(/\n/g, '\r\n'));
+      dataFolder.folder('text').file('campaign_descriptions.txt', toCRLF(`¬\n${allDescs}`));
     }
 
     // Bundle user-selected extra files (campaign package files)
