@@ -116,6 +116,24 @@ const DATA_FILE_MAP = {
   'export_descr_guilds.txt': 'guilds'
 };
 
+const TEXT_LOCALIZATION_FILENAMES = new Set([
+  'export_buildings.txt',
+  'export_units.txt',
+  'export_units_wip.txt',
+  'export_vnvs.txt',
+  'export_ancillaries.txt',
+  'campaign_descriptions.txt',
+  'names.txt',
+  'expanded_bi.txt',
+  'expanded_bi_wip.txt',
+  'expanded.txt',
+  'menu_english.txt',
+  'menu.txt',
+  'rebel_faction_descr.txt',
+  'strat.txt',
+  'tooltips.txt',
+]);
+
 
 
 function FileStatus({ label, hint, status }) {
@@ -343,12 +361,14 @@ export default function Home() {
       const pathFramed = `/${pathLower}`;
 
       let textOverride = null;
-      if (pathFramed.includes('/text/') && name.endsWith('.txt')) {
+      const isTextLocalizationFile = name.endsWith('.txt') && (pathFramed.includes('/text/') || TEXT_LOCALIZATION_FILENAMES.has(name));
+      if (isTextLocalizationFile) {
         textOverride = await readText(file);
         const locMap = parseTextLocFile(textOverride);
         const entries = textLocMapToEntries(locMap);
         if (entries.length > 0) {
-          textLocFiles[file.name] = { entries, sourceFormat: 'txt' };
+          const storeName = name === 'expanded.txt' ? 'expanded_bi.txt' : file.name;
+          textLocFiles[storeName] = { entries, sourceFormat: 'txt' };
           const normalizedEntries = entries.map((entry) => ({
             key: String(entry.key || '').trim().replace(/^\{/, '').replace(/\}$/, ''),
             value: entry.value ?? ''
