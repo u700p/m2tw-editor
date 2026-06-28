@@ -3,6 +3,7 @@ import { Upload, Download, Copy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseTextLocFile, serializeTextLocFile, textLocMapToEntries } from '@/lib/textLocParser';
 import { textBlob } from '@/lib/lineEndings';
+import { ensureRtwFactionLocEntries, extractFactionIdsFromLocEntries } from '@/lib/factionLoc';
 
 const GLOBAL_STRINGS_KEY = 'rtw_expanded_text_global';
 
@@ -93,11 +94,7 @@ export default function DescriptionsTab({ factionName }) {
 
   // Distinct faction names present in the loaded strings, excluding current
   const sourceFactions = useMemo(() => {
-    const names = new Set();
-    for (const e of allEntries) {
-      const m = e.key?.match(/^\{?(?:EMT_)?([A-Z0-9]+?)(?:_FACTION|_STRENGTH|_WEAKNESS|_UNIT|\}|$)/);
-      if (m) names.add(m[1].toLowerCase());
-    }
+    const names = new Set(extractFactionIdsFromLocEntries(allEntries));
     names.delete(factionName.toLowerCase());
     return [...names].sort();
   }, [allEntries, factionName]);
@@ -117,7 +114,7 @@ export default function DescriptionsTab({ factionName }) {
     const newAdj = adjective.trim();
 
     const srcEntries = allEntries.filter(e => e.key?.toUpperCase().includes(srcUpper));
-    const newEntries = srcEntries.map(e => {
+    const copiedEntries = srcEntries.map(e => {
       const newKey = e.key.replace(new RegExp(srcUpper, 'g'), dstUpper);
       let newValue = e.value;
 
@@ -129,6 +126,8 @@ export default function DescriptionsTab({ factionName }) {
       }
 
       if (newKey === dstUpper && displayName.trim()) newValue = displayName.trim();
+      else if (newKey === `EMT_${dstUpper}_FACTION_LEADER` && leaderTitle.trim()) newValue = leaderTitle.trim();
+      else if (newKey === `EMT_${dstUpper}_FACTION_HEIR` && heirTitle.trim()) newValue = heirTitle.trim();
       else if (newKey === `EMT_${dstUpper}_FACTION_LEADER_TITLE` && leaderTitle.trim()) newValue = leaderTitle.trim();
       else if (newKey === `EMT_${dstUpper}_FACTION_HEIR_TITLE` && heirTitle.trim()) newValue = heirTitle.trim();
       else if (newKey === `EMT_${dstUpper}_FACTION_LEADER_NAME` && leaderTitle.trim()) newValue = `${leaderTitle.trim()} %S`;
@@ -138,6 +137,12 @@ export default function DescriptionsTab({ factionName }) {
       else if (newKey === `${dstUpper}_UNIT` && customUnit.trim()) newValue = customUnit.trim();
 
       return { key: newKey, value: newValue };
+    });
+    const newEntries = ensureRtwFactionLocEntries(copiedEntries, factionName, {
+      displayName,
+      adjective: newAdj,
+      leaderTitle,
+      heirTitle,
     });
 
     const filtered = allEntries.filter(e => !e.key?.toUpperCase().includes(dstUpper));

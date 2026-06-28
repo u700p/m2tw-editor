@@ -13,6 +13,7 @@ import MiscTab, { hasFactionNavyEntry, insertFactionNavyEntry } from '@/componen
 import FactionSymbolsTab from '@/components/factions/FactionSymbolsTab';
 import { textBlob } from '@/lib/lineEndings';
 import { parseTextLocFile, serializeTextLocFile, textLocMapToEntries } from '@/lib/textLocParser';
+import { ensureRtwFactionLocEntries } from '@/lib/factionLoc';
 
 const LS_OFFMAP = 'm2tw_offmap_models';
 const LS_GLOBAL_STRINGS = 'rtw_expanded_text_global';
@@ -990,7 +991,7 @@ export default function FactionsEditor() {
       });
       
       // Create new entries by replacing source faction name with new faction name in keys
-      const newEntries = srcEntries.map(entry => {
+      const copiedEntries = srcEntries.map(entry => {
         // Replace faction name in the KEY (e.g., {MILAN} -> {MANTUA})
         const newKey = entry.key.replace(new RegExp(srcNameUpper, 'g'), nameUpper);
         
@@ -1013,6 +1014,12 @@ export default function FactionsEditor() {
         // Apply user's custom edits for specific fields - these override any previous replacements
         if (newKey === nameUpper && displayName.trim()) {
           newValue = displayName.trim();
+        }
+        else if (newKey === `EMT_${nameUpper}_FACTION_LEADER` && leaderTitle.trim()) {
+          newValue = leaderTitle.trim();
+        }
+        else if (newKey === `EMT_${nameUpper}_FACTION_HEIR` && heirTitle.trim()) {
+          newValue = heirTitle.trim();
         }
         else if (newKey === `EMT_${nameUpper}_FACTION_LEADER_TITLE` && leaderTitle.trim()) {
           newValue = leaderTitle.trim();
@@ -1040,6 +1047,12 @@ export default function FactionsEditor() {
         }
         
         return { key: newKey, value: newValue };
+      });
+      const newEntries = ensureRtwFactionLocEntries(copiedEntries, newFactionName, {
+        displayName,
+        adjective: newAdj,
+        leaderTitle,
+        heirTitle,
       });
       
       // Remove any existing entries for this new faction name
