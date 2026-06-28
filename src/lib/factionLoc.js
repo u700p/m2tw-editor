@@ -83,7 +83,7 @@ export function extractFactionIdsFromLocEntries(entries) {
   for (const entry of entries || []) {
     const key = keyUpper(entry.key);
     let match;
-    if ((match = key.match(/^EMT_(YOUR_FORCES_(?:ATTACK|ATTACKED|AMBUSH|AMBUSHED)_(?:ARMY|NAVY)|VICTORY|VICTORY_DESCR|DEFEATED_BY|SHORT_VICTORY)_([A-Z0-9_]+)$/))) {
+    if ((match = key.match(/^EMT_(YOUR_FORCES_(?:ATTACKED|ATTACK|AMBUSHED|AMBUSH)_(?:ARMY|NAVY)|VICTORY_DESCR|VICTORY|DEFEATED_BY|SHORT_VICTORY)_([A-Z0-9_]+)$/))) {
       add(match[2]);
     } else if ((match = key.match(/^EMT_([A-Z0-9_]+)_(SPY|ASSASSIN|DIPLOMAT|ADMIRAL|GENERAL|NAMED_CHARACTER|MERCHANT|VILLAGE|TOWN|LARGE_TOWN|CITY|LARGE_CITY|HUGE_CITY|CAPITAL|FORT|PORT|DOCK|FISHING_VILLAGE|FACTION_LEADER|FACTION_HEIR)$/))) {
       add(match[1]);
