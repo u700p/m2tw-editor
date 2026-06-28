@@ -5,7 +5,7 @@ import { downloadBlob, exportTGA } from './tgaExporter';
 import PositionPickerButton from './PositionPickerButton';
 import ImageCropModal from '../edb/ImageCropModal';
 import { getStringsBinStore } from '../../lib/stringsBinStore';
-import { encodeStringsBin } from '../strings/stringsBinCodec';
+import { serializeTextLocFile } from '../../lib/textLocParser';
 
 const toCRLF = (text) => text.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
 
@@ -14,7 +14,7 @@ const EVENT_ICONS = {
   storm: '⛈️', horde: '⚔️', dustbowl: '🌪️', locusts: '🦗', plague: '☣️',
 };
 
-// Read historic_events.txt.strings.bin from the strings store
+// Read historic_events.txt from the shared localization store
 function getHistoricEventStrings() {
   try {
     const store = getStringsBinStore();
@@ -67,7 +67,7 @@ function EventRow({ event, idx, onChange, onDelete, onPickFromMap }) {
   const addPos = (val) => { if (!val) return; onChange(idx, { ...ev, positions: [...(ev.positions || []), val] }); };
   const removePos = (val) => onChange(idx, { ...ev, positions: ev.positions.filter(p => p !== val) });
 
-  // Strings from bin store
+  // Strings from text localization store
   const { map: stringsMap } = useMemo(() => getHistoricEventStrings(), []);
   const cultureList = useMemo(() => getCultureList(), []);
 
@@ -87,11 +87,11 @@ function EventRow({ event, idx, onChange, onDelete, onPickFromMap }) {
   const titleKey = `${nameUpper}_TITLE`;
   const bodyKey = `${nameUpper}_BODY`;
 
-  const titleFromBin = stringsMap[titleKey] || '';
-  const bodyFromBin = stringsMap[bodyKey] || '';
+  const titleFromText = stringsMap[titleKey] || '';
+  const bodyFromText = stringsMap[bodyKey] || '';
 
-  const titleValue = ev._title !== undefined ? ev._title : titleFromBin;
-  const bodyValue = ev._body !== undefined ? ev._body : bodyFromBin;
+  const titleValue = ev._title !== undefined ? ev._title : titleFromText;
+  const bodyValue = ev._body !== undefined ? ev._body : bodyFromText;
 
   const handleImageFile = (e) => {
     const file = e.target.files?.[0];
@@ -174,7 +174,7 @@ function EventRow({ event, idx, onChange, onDelete, onPickFromMap }) {
             </div>
           </div>
 
-          {/* Title and Body from strings.bin */}
+          {/* Title and Body from text localization */}
           <div>
             <div className="flex items-center gap-1 mb-0.5">
               <span className="text-[9px] text-slate-500">Title</span>
@@ -183,7 +183,7 @@ function EventRow({ event, idx, onChange, onDelete, onPickFromMap }) {
             <input
               value={titleValue}
               onChange={e => set('_title', e.target.value)}
-              placeholder={titleFromBin || 'Load historic_events.txt.strings.bin…'}
+              placeholder={titleFromText || 'Load historic_events.txt...'}
               className="w-full h-6 px-1.5 text-[11px] bg-slate-800 border border-slate-600/40 rounded text-slate-200"
             />
           </div>
@@ -195,7 +195,7 @@ function EventRow({ event, idx, onChange, onDelete, onPickFromMap }) {
             <textarea
               value={bodyValue}
               onChange={e => set('_body', e.target.value)}
-              placeholder={bodyFromBin || 'Enter event text…'}
+              placeholder={bodyFromText || 'Enter event text...'}
               rows={3}
               className="w-full px-1.5 py-1 text-[11px] bg-slate-800 border border-slate-600/40 rounded text-slate-200 resize-y font-mono"
             />
@@ -352,7 +352,7 @@ export default function CampaignEventsTab({ events, onEventsChange, onPickFromMa
     downloadBlob(new Blob([text], { type: 'text/plain' }), 'descr_events.txt');
   };
 
-  const handleExportStringsBin = () => {
+  const handleExportStringsText = () => {
     const { map: existing, fname } = getHistoricEventStrings();
     const updated = { ...existing };
     for (const ev of (events || [])) {
@@ -360,9 +360,8 @@ export default function CampaignEventsTab({ events, onEventsChange, onPickFromMa
       if (ev._title !== undefined) updated[`${nameUpper}_TITLE`] = ev._title;
       if (ev._body !== undefined) updated[`${nameUpper}_BODY`] = ev._body;
     }
-    const entries = Object.entries(updated).map(([key, value]) => ({ key, value }));
-    const buf = encodeStringsBin(entries);
-    downloadBlob(new Blob([buf]), fname || 'historic_events.txt.strings.bin');
+    const filename = fname?.toLowerCase().endsWith('.txt') ? fname : 'historic_events.txt';
+    downloadBlob(new Blob([serializeTextLocFile(updated)], { type: 'text/plain' }), filename);
   };
 
   const hasStringsEdits = (events || []).some(ev => ev._title !== undefined || ev._body !== undefined);
@@ -378,9 +377,9 @@ export default function CampaignEventsTab({ events, onEventsChange, onPickFromMa
         </div>
         <div className="flex gap-1 flex-wrap justify-end">
           {hasStringsEdits && (
-            <button onClick={handleExportStringsBin}
+            <button onClick={handleExportStringsText}
               className="flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[10px] bg-cyan-600/20 hover:bg-cyan-600/40 border-cyan-500/30 text-cyan-400 transition-colors">
-              <Download className="w-2.5 h-2.5" /> Strings
+              <Download className="w-2.5 h-2.5" /> Text
             </button>
           )}
           <button onClick={handleExport} disabled={!events?.length}
