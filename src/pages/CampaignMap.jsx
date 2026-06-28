@@ -370,8 +370,15 @@ export default function CampaignMap() {
       }
       if (name === 'descr_sm_factions.txt') {
         const text = await file.text();
-        try { sessionStorage.setItem('m2tw_factions_raw', text); } catch {}
+        try {
+          sessionStorage.setItem('m2tw_factions_raw', text);
+          localStorage.setItem('m2tw_factions_raw', text);
+          localStorage.setItem('m2tw_factions_file', text);
+          localStorage.setItem('m2tw_sm_factions_raw', text);
+          localStorage.setItem('m2tw_factions_file_name', file.name);
+        } catch {}
         setFactionColorsRaw(parseDescrSmFactions(text));
+        window.dispatchEvent(new CustomEvent('factions-file-loaded'));
       }
       if (name.endsWith('_regions_and_settlement_names.txt')) {
         const text = await file.text();
@@ -425,8 +432,15 @@ export default function CampaignMap() {
       }
       if (name === 'export_descr_unit.txt') {
         const text = await file.text();
-        try { sessionStorage.setItem('m2tw_edu_raw', text); } catch {}
+        try {
+          sessionStorage.setItem('m2tw_edu_raw', text);
+          localStorage.setItem('m2tw_units_file', text);
+          localStorage.setItem('m2tw_edu_file_name', file.name);
+          const units = [...new Set(text.split('\n').map(line => line.replace(/;.*$/, '').trim().match(/^type\s+(.+)/i)?.[1]?.trim()).filter(Boolean))].sort();
+          if (units.length) localStorage.setItem('m2tw_edu_units_list', JSON.stringify(units));
+        } catch {}
         setEduUnits(parseEDU(text));
+        window.dispatchEvent(new CustomEvent('edu-file-loaded'));
       }
       // Store additional campaign text files for ZIP export
       const extraSessionMap = {
@@ -1134,7 +1148,16 @@ export default function CampaignMap() {
                     }
                   }}
                   onNamesLoad={(text) => { try { sessionStorage.setItem('m2tw_names_raw', text); } catch {} setSettlementNamesRaw(parseSettlementNames(text)); }}
-                  onFactionsLoad={(text) => { try { sessionStorage.setItem('m2tw_factions_raw', text); } catch {} setFactionColorsRaw(parseDescrSmFactions(text)); }}
+                  onFactionsLoad={(text) => {
+                    try {
+                      sessionStorage.setItem('m2tw_factions_raw', text);
+                      localStorage.setItem('m2tw_factions_raw', text);
+                      localStorage.setItem('m2tw_factions_file', text);
+                      localStorage.setItem('m2tw_sm_factions_raw', text);
+                    } catch {}
+                    setFactionColorsRaw(parseDescrSmFactions(text));
+                    window.dispatchEvent(new CustomEvent('factions-file-loaded'));
+                  }}
                   onRegionsDataUpdate={setRegionsDataRaw}
                   onSettlementChange={(id, edits) => {
                     setEditedSettlements(prev => ({ ...prev, [id]: { ...(prev[id] || {}), ...edits } }));
