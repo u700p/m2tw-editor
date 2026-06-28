@@ -863,12 +863,24 @@ export default function Home() {
       const pathLower = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
       const pathFramed = `/${pathLower}`;
 
-      if (pathFramed.includes('/text/') && name.endsWith('.txt')) {
+      const isTextLocalizationFile = name.endsWith('.txt') && (pathFramed.includes('/text/') || TEXT_LOCALIZATION_FILENAMES.has(name));
+      if (isTextLocalizationFile) {
         const text = await readText(file);
         const locMap = parseTextLocFile(text);
         const entries = textLocMapToEntries(locMap);
         if (entries.length > 0) {
-          textLocFiles[file.name] = { entries, sourceFormat: 'txt' };
+          const storeName = name === 'expanded.txt' ? 'expanded_bi.txt' : file.name;
+          textLocFiles[storeName] = { entries, sourceFormat: 'txt' };
+          const normalizedEntries = entries.map((entry) => ({
+            key: String(entry.key || '').trim().replace(/^\{/, '').replace(/\}$/, ''),
+            value: entry.value ?? ''
+          }));
+          if (/^expanded(?:_bi|_bi_wip)?\.txt$/i.test(name)) {
+            try { localStorage.setItem('rtw_expanded_text_global', JSON.stringify({ entries: normalizedEntries })); } catch {}
+          } else if (name === 'menu_english.txt' || name === 'menu.txt') {
+            try { localStorage.setItem('rtw_menu_text_global', JSON.stringify({ entries: normalizedEntries })); } catch {}
+            window.dispatchEvent(new CustomEvent('menu-strings-updated'));
+          }
           if (name.endsWith('_regions_and_settlement_names.txt')) {
             try { sessionStorage.setItem('m2tw_names_raw', text); } catch {}
           }
