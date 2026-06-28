@@ -112,7 +112,7 @@ export function parseTextLocFile(text) {
 function serializeEntryLine(key, value, token = {}) {
   const strValue = String(value ?? '');
   const valueLines = strValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  if (!strValue) return [`{${key}}`];
+  if (!strValue) return [`{${key}}`, ...(token.notes || [])];
   if (token.multiline || strValue.includes('\n') || !token.inline || token.notes?.length) {
     return [`{${key}}`, ...(token.notes || []), ...valueLines];
   }
