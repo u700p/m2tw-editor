@@ -28,15 +28,16 @@ const TEXT_FILENAMES = new Set([
 function categorizeFile(file) {
   const name = file.name.toLowerCase();
   const path = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
+  const framed = `/${path}`;
 
-  if (path.includes('/text/') && name.endsWith('.txt')) return 'text_loc';
-  if (path.includes('/maps/campaign/') || path.includes('/maps/base/')) {
+  if (framed.includes('/text/') && name.endsWith('.txt')) return 'text_loc';
+  if (framed.includes('/maps/campaign/') || framed.includes('/maps/base/')) {
     if (name.endsWith('.tga') || name.endsWith('.txt')) return 'campaign';
     return null;
   }
   if (name.endsWith('.tga')) {
-    if (!path.includes('/ui/')) return null;
-    if (path.includes('/terrain/')) return 'images_terrain';
+    if (!framed.includes('/ui/')) return null;
+    if (framed.includes('/terrain/')) return 'images_terrain';
     return 'images_ui';
   }
   if (TEXT_FILENAMES.has(name)) return 'text';
@@ -58,9 +59,10 @@ function detectCampaignFolders(files) {
   const direct = new Set(), custom = new Set();
   for (const file of files) {
     const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-    const customMatch = path.match(/\/maps\/campaign\/custom\/([^/]+)\//);
+    const framed = `/${path}`;
+    const customMatch = framed.match(/\/maps\/campaign\/custom\/([^/]+)\//);
     if (customMatch) { custom.add(customMatch[1]); continue; }
-    const directMatch = path.match(/\/maps\/campaign\/([^/]+)\//);
+    const directMatch = framed.match(/\/maps\/campaign\/([^/]+)\//);
     if (directMatch && directMatch[1] !== 'custom') direct.add(directMatch[1]);
   }
   return { direct: [...direct], custom: [...custom] };
@@ -70,7 +72,7 @@ function detectUiFolders(files) {
   const folders = new Set();
   for (const file of files) {
     const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-    const match = path.match(/\/ui\/([^/]+)\//);
+    const match = `/${path}`.match(/\/ui\/([^/]+)\//);
     if (match) folders.add(match[1]);
   }
   return [...folders];
@@ -186,11 +188,11 @@ export default function DataFolderPicker({ onLoad, loading }) {
   });
 
   const directCampaignFiles = (folder) => (scanned?.byCategory['campaign'] || []).filter(f =>
-    (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes(`/campaign/${folder}/`));
+    `/${(f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/')}`.includes(`/campaign/${folder}/`));
   const customCampaignFiles = (folder) => (scanned?.byCategory['campaign'] || []).filter(f =>
-    (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes(`/campaign/custom/${folder}/`));
+    `/${(f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/')}`.includes(`/campaign/custom/${folder}/`));
   const uiFolderFiles = (folder) => (scanned?.byCategory['images_ui'] || []).filter(f =>
-    (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes(`/ui/${folder}/`));
+    `/${(f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/')}`.includes(`/ui/${folder}/`));
 
   const countSelected = () => {
     if (!scanned) return 0;
@@ -200,16 +202,17 @@ export default function DataFolderPicker({ onLoad, loading }) {
       if (cat === 'campaign') {
         s += files.filter(f => {
           const path = (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-          const customMatch = path.match(/\/maps\/campaign\/custom\/([^/]+)\//);
+          const framed = `/${path}`;
+          const customMatch = framed.match(/\/maps\/campaign\/custom\/([^/]+)\//);
           if (customMatch) return selectedCampaigns.has(customMatch[1]);
-          const directMatch = path.match(/\/maps\/campaign\/([^/]+)\//);
+          const directMatch = framed.match(/\/maps\/campaign\/([^/]+)\//);
           if (directMatch && directMatch[1] !== 'custom') return selectedCampaigns.has(directMatch[1]);
           return true;
         }).length;
       } else if (cat === 'images_ui') {
         s += files.filter(f => {
           const path = (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-          const m = path.match(/\/ui\/([^/]+)\//);
+          const m = `/${path}`.match(/\/ui\/([^/]+)\//);
           return !m || selectedUiFolders.has(m[1]);
         }).length;
       } else {
@@ -228,9 +231,10 @@ export default function DataFolderPicker({ onLoad, loading }) {
         const baseFiles = [], campaignFiles = [];
         for (const file of files) {
           const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-          const customMatch = path.match(/\/maps\/campaign\/custom\/([^/]+)\//);
+          const framed = `/${path}`;
+          const customMatch = framed.match(/\/maps\/campaign\/custom\/([^/]+)\//);
           if (customMatch) { if (selectedCampaigns.has(customMatch[1])) campaignFiles.push(file); continue; }
-          const directMatch = path.match(/\/maps\/campaign\/([^/]+)\//);
+          const directMatch = framed.match(/\/maps\/campaign\/([^/]+)\//);
           if (directMatch && directMatch[1] !== 'custom') { if (selectedCampaigns.has(directMatch[1])) campaignFiles.push(file); continue; }
           baseFiles.push(file);
         }
@@ -240,7 +244,7 @@ export default function DataFolderPicker({ onLoad, loading }) {
       } else if (cat === 'images_ui') {
         for (const file of files) {
           const path = (file.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/');
-          const match = path.match(/\/ui\/([^/]+)\//);
+          const match = `/${path}`.match(/\/ui\/([^/]+)\//);
           if (!match || selectedUiFolders.has(match[1])) toLoad.push(file);
         }
       } else {
