@@ -226,8 +226,36 @@ function FileInput({ label, accept, onText, onBuffer }) {
   );
 }
 
+const NAMED_COLORS = {
+  olive: '#808000',
+  green: '#008000',
+  lime: '#00ff00',
+  forestgreen: '#228b22',
+  darkolivegreen: '#556b2f',
+  olivedrab: '#6b8e23',
+  khaki: '#f0e68c',
+  tan: '#d2b48c',
+  brown: '#a52a2a',
+  maroon: '#800000',
+  navy: '#000080',
+  teal: '#008080',
+  purple: '#800080',
+  black: '#000000',
+  white: '#ffffff',
+};
+
+function normalizeColorInput(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (NAMED_COLORS[raw]) return NAMED_COLORS[raw];
+  const short = /^#?([a-f\d])([a-f\d])([a-f\d])$/i.exec(raw);
+  if (short) return `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`.toLowerCase();
+  const full = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(raw);
+  return full ? `#${full[1]}${full[2]}${full[3]}`.toLowerCase() : null;
+}
+
 function hexToRgb(hex) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+  const normalized = normalizeColorInput(hex) || '#a01e1e';
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
   return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 160, g: 30, b: 30 };
 }
 
@@ -343,12 +371,17 @@ function recolorImageData(imageData, settings) {
     const detailMask = settings.protectExtremes && (hsl.l < 0.055 || hsl.l > 0.955) ? 0.18 : 1;
     const mask = smoothMask((best?.score || 0) * satMask * detailMask) * strength;
     if (mask <= 0) continue;
-    const targetSat = clamp01(hsl.s * (1 - targetSatMix) + best.tgt.s * targetSatMix + saturationAdjust);
-    const baseLight = settings.preserveLight ? hsl.l : clamp01(hsl.l * 0.82 + best.tgt.l * 0.18);
-    const mixedLight = clamp01(baseLight * (1 - targetLightMix) + best.tgt.l * targetLightMix);
-    const contrastedLight = clamp01((mixedLight - 0.5) * (1 + lightnessContrast) + 0.5);
-    const targetLight = clamp01(contrastedLight + lightnessShift);
-    const recolored = hslToRgb(best.tgt.h, targetSat, targetLight);
+    let recolored;
+    if (settings.exactTargetColor) {
+      recolored = best.tgtRgb;
+    } else {
+      const targetSat = clamp01(hsl.s * (1 - targetSatMix) + best.tgt.s * targetSatMix + saturationAdjust);
+      const baseLight = settings.preserveLight ? hsl.l : clamp01(hsl.l * 0.82 + best.tgt.l * 0.18);
+      const mixedLight = clamp01(baseLight * (1 - targetLightMix) + best.tgt.l * targetLightMix);
+      const contrastedLight = clamp01((mixedLight - 0.5) * (1 + lightnessContrast) + 0.5);
+      const targetLight = clamp01(contrastedLight + lightnessShift);
+      recolored = hslToRgb(best.tgt.h, targetSat, targetLight);
+    }
     d[i] = Math.round(d[i] * (1 - mask) + recolored.r * mask);
     d[i + 1] = Math.round(d[i + 1] * (1 - mask) + recolored.g * mask);
     d[i + 2] = Math.round(d[i + 2] * (1 - mask) + recolored.b * mask);
@@ -565,7 +598,7 @@ function TextureRecolorTab() {
     secondarySource: '#d7c04a', secondaryTarget: '#e4e4e4',
     tertiarySource: '#2d6d37', tertiaryTarget: '#8c2f2f',
     suffix: '_recolor', outputFormat: 'both',
-    useSource: true, preserveLight: true, recolorNeutrals: false, protectExtremes: true,
+    useSource: true, preserveLight: true, exactTargetColor: false, recolorNeutrals: false, protectExtremes: true,
     protectMaterials: true, secondaryEnabled: false, tertiaryEnabled: false,
   });
   const [preview, setPreview] = useState(null);
@@ -700,6 +733,7 @@ function TextureRecolorTab() {
         {[
           ['useSource', 'Match source hue'],
           ['preserveLight', 'Preserve shadows/highlights'],
+          ['exactTargetColor', 'Exact target RGB'],
           ['recolorNeutrals', 'Allow low-saturation pixels'],
           ['protectExtremes', 'Protect black/white detail'],
           ['protectMaterials', 'Protect skin/hair/leather/armor'],
@@ -731,12 +765,31 @@ function TextureRecolorTab() {
 }
 
 function Swatch({ label, value, onChange }) {
+  const normalized = normalizeColorInput(value) || '#000000';
+  const [draft, setDraft] = useState(value || normalized);
+  useEffect(() => {
+    setDraft(value || normalized);
+  }, [value, normalized]);
+
+  const commit = () => {
+    const next = normalizeColorInput(draft);
+    if (next) onChange(next);
+    else setDraft(value || normalized);
+  };
+
   return (
     <label className="block">
       <span className="text-[10px] uppercase text-slate-500">{label}</span>
       <div className="flex items-center gap-2 mt-1">
-        <input type="color" value={value} onChange={e => onChange(e.target.value)} className="w-10 h-8 bg-transparent border-0" />
-        <input value={value} onChange={e => onChange(e.target.value)} className="flex-1 h-8 px-2 text-xs font-mono bg-slate-900 border border-slate-700 rounded" />
+        <input type="color" value={normalized} onChange={e => onChange(e.target.value)} className="w-10 h-8 bg-transparent border-0" />
+        <input
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => e.key === 'Enter' && commit()}
+          placeholder="#808000 or olive"
+          className="flex-1 h-8 px-2 text-xs font-mono bg-slate-900 border border-slate-700 rounded"
+        />
       </div>
     </label>
   );
