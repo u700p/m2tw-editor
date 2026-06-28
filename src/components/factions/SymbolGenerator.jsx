@@ -185,9 +185,11 @@ const FIT_MODES = [
 const DEFAULT_SETS = [
   { key: '24',  minW: 32, minH: 41,  label: 'FE_buttons_24',  folder: 'data/menu/symbols/FE_buttons_24',  variants: ['standard', 'grey', 'roll', 'select'] },
   { key: '48',  minW: 59, minH: 59,  label: 'FE_buttons_48',  folder: 'data/menu/symbols/FE_buttons_48',  variants: ['standard', 'grey', 'roll', 'select'] },
+  { key: 'loading128', minW: 128, minH: 128, label: 'loading_screen/symbols', folder: 'data/loading_screen/symbols', variants: ['standard'] },
 ];
 
 function tgaFilename(factionName, setKey, variant) {
+  if (setKey === 'loading128') return `symbol128_${factionName}.tga`;
   const suffix = variant === 'standard' ? '' : `_${variant}`;
   return `symbol${setKey}_${factionName}${suffix}.tga`;
 }

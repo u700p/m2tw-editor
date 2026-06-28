@@ -349,6 +349,20 @@ export default function Home() {
         const entries = textLocMapToEntries(locMap);
         if (entries.length > 0) {
           textLocFiles[file.name] = { entries, sourceFormat: 'txt' };
+          const normalizedEntries = entries.map((entry) => ({
+            key: String(entry.key || '').trim().replace(/^\{/, '').replace(/\}$/, ''),
+            value: entry.value ?? ''
+          }));
+          if (/^expanded(?:_bi|_bi_wip)?\.txt$/i.test(name)) {
+            try { localStorage.setItem('rtw_expanded_text_global', JSON.stringify({ entries: normalizedEntries })); } catch {}
+          } else if (name === 'menu_english.txt' || name === 'menu.txt') {
+            try { localStorage.setItem('rtw_menu_text_global', JSON.stringify({ entries: normalizedEntries })); } catch {}
+            window.dispatchEvent(new CustomEvent('menu-strings-updated'));
+          } else if (name === 'export_buildings.txt') {
+            try { localStorage.setItem('m2tw_edb_txt_file', textOverride); } catch {}
+            loadTextFile(textOverride);
+            setFileStatus((prev) => ({ ...prev, txt: 'ok' }));
+          }
           if (name === 'export_vnvs.txt') {
             try {
               localStorage.setItem('m2tw_vnvs_file', textOverride);
@@ -490,7 +504,15 @@ export default function Home() {
           // Also store in sessionStorage for editors that need it
           if (key === 'religions') sessionStorage.setItem('m2tw_religions_raw', text);
           if (key === 'rebel_fac') sessionStorage.setItem('m2tw_rebel_factions_raw', text);
-          if (key === 'cultures') sessionStorage.setItem('m2tw_cultures_raw', text);
+          if (key === 'cultures') {
+            sessionStorage.setItem('m2tw_cultures_raw', text);
+            const cultures = [...new Set(text.split('\n').map(line => line.replace(/;.*$/, '').trim().match(/^culture\s+(\S+)/i)?.[1]).filter(Boolean))].sort();
+            if (cultures.length) localStorage.setItem('m2tw_cultures_list', JSON.stringify(cultures));
+          }
+          if (key === 'religions') {
+            const religions = [...new Set(text.split('\n').map(line => line.replace(/;.*$/, '').trim().match(/^religion\s+(\S+)/i)?.[1]).filter(Boolean))].sort();
+            if (religions.length) localStorage.setItem('m2tw_religions_list', JSON.stringify(religions));
+          }
           if (key === 'names') {
             sessionStorage.setItem('m2tw_descr_names_raw', text);
             window.dispatchEvent(new CustomEvent('load-character-names', { detail: { raw: text } }));
@@ -545,8 +567,10 @@ export default function Home() {
         // Store EDU in localStorage for campaign map editor
         if (key === 'unit') {
           try {
+            const units = [...new Set(text.split('\n').map(line => line.replace(/;.*$/, '').trim().match(/^type\s+(.+)/i)?.[1]?.trim()).filter(Boolean))].sort();
             localStorage.setItem('m2tw_units_file', text);
             localStorage.setItem('m2tw_edu_file_name', file.name);
+            if (units.length) localStorage.setItem('m2tw_edu_units_list', JSON.stringify(units));
             sessionStorage.setItem('m2tw_edu_raw', text);
           } catch {}
           window.dispatchEvent(new CustomEvent('edu-file-loaded'));

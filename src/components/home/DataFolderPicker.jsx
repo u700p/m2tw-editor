@@ -22,7 +22,7 @@ const TEXT_FILENAMES = new Set([
   'descr_event.txt','descr_sounds_music_types.txt','descr_terrain.txt',
   'export_vnvs.txt','export_ancillaries.txt','campaign_descriptions.txt','names.txt',
   'rebel_faction_descr.txt','strat.txt','tooltips.txt','expanded.txt','expanded_bi.txt',
-  'expanded_bi_wip.txt','export_units_wip.txt',
+  'expanded_bi_wip.txt','export_units_wip.txt','menu_english.txt','menu.txt',
 ]);
 
 function categorizeFile(file) {

@@ -24,6 +24,13 @@ const SYMBOL_GROUPS = [
       { key: 'symbol48_select', suffix: '_select', filename: (f) => `symbol48_${f}_select.tga` },
     ],
   },
+  {
+    label: 'Loading Screen Symbol',
+    folder: 'data\\loading_screen\\symbols',
+    slots: [
+      { key: 'loading_symbol128', suffix: '', filename: (f) => `symbol128_${f}.tga` },
+    ],
+  },
 ];
 
 function SymbolSlot({ label, filename, imageUrl, onLoad }) {
