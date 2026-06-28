@@ -161,6 +161,27 @@ function mergeFilesByPath(existing = [], incoming = []) {
   return Array.from(byPath.values());
 }
 
+async function mapWithLimit(items, limit, mapper) {
+  const results = new Array(items.length);
+  let index = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await mapper(items[current], current);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function decodeTgaFiles(files) {
+  return mapWithLimit(files, 8, async (file) => {
+    const buf = await file.arrayBuffer();
+    const dataUrl = decodeTgaToDataUrl(buf);
+    return dataUrl ? { file, dataUrl } : null;
+  });
+}
+
 function detectCampaignFolderName(files) {
   const samplePath = fileIdentity(files[0] || {});
   const framed = `/${samplePath}`;
@@ -567,10 +588,8 @@ export default function Home() {
     if (ancTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, anc_images: 'loading' }));
       const images = {};
-      for (const file of ancTgaFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) images[file.name.replace(/\.tga$/i, '').toLowerCase()] = dataUrl;
+      for (const item of await decodeTgaFiles(ancTgaFiles)) {
+        if (item) images[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
       }
       window.dispatchEvent(new CustomEvent('load-anc-tga-batch', { detail: images }));
       setAncImgCount(Object.keys(images).length);
@@ -581,10 +600,8 @@ export default function Home() {
     if (unitTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, unit_images: 'loading' }));
       const images = {};
-      for (const file of unitTgaFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) images[file.name.replace(/\.tga$/i, '').toLowerCase()] = dataUrl;
+      for (const item of await decodeTgaFiles(unitTgaFiles)) {
+        if (item) images[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
       }
       window._m2tw_unit_images = images;
       window.dispatchEvent(new CustomEvent('load-unit-images', { detail: images }));
@@ -595,10 +612,8 @@ export default function Home() {
     // Auto-load religion pip images
     if (religionPipFiles.length > 0) {
       const pips = {};
-      for (const file of religionPipFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) pips[file.name.replace(/\.tga$/i, '').toLowerCase()] = dataUrl;
+      for (const item of await decodeTgaFiles(religionPipFiles)) {
+        if (item) pips[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
       }
       window._m2tw_religion_pips = { ...(window._m2tw_religion_pips || {}), ...pips };
     }
@@ -606,10 +621,8 @@ export default function Home() {
     // Auto-load resource icons (ui/resources/*.tga)
     if (resourceTgaFiles.length > 0) {
       const icons = {};
-      for (const file of resourceTgaFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) icons[file.name.replace(/\.tga$/i, '').toLowerCase()] = dataUrl;
+      for (const item of await decodeTgaFiles(resourceTgaFiles)) {
+        if (item) icons[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
       }
       window._m2tw_resource_icons = { ...(window._m2tw_resource_icons || {}), ...icons };
       window.dispatchEvent(new CustomEvent('load-resource-icons', { detail: icons }));
@@ -620,10 +633,8 @@ export default function Home() {
     if (groundTypeTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, ground_textures: 'loading' }));
       const textures = {};
-      for (const file of groundTypeTgaFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) textures[file.name.replace(/\.tga$/i, '').toLowerCase()] = dataUrl;
+      for (const item of await decodeTgaFiles(groundTypeTgaFiles)) {
+        if (item) textures[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
       }
       window._m2tw_ground_textures = textures;
       window.dispatchEvent(new CustomEvent('load-ground-textures', { detail: textures }));
@@ -643,10 +654,9 @@ export default function Home() {
     // Auto-load portrait images from data\ui\custom_portraits\[portrait_name]\portrait_*.tga
     if (portraitTgaFiles.length > 0) {
       const portraits = { ...(window._m2tw_portraits || {}) };
-      for (const file of portraitTgaFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) {
+      for (const item of await decodeTgaFiles(portraitTgaFiles)) {
+        if (item) {
+          const { file, dataUrl } = item;
           const pathLower2 = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
           const baseName = file.name.replace(/\.tga$/i, '').toLowerCase();
           // Extract portrait folder name from path: custom_portraits/[folder]/portrait_*.tga
@@ -666,10 +676,9 @@ export default function Home() {
     // Auto-load event pics from data\ui\[culture]\eventpics\
     if (eventPicFiles.length > 0) {
       const pics = { ...(window._m2tw_event_pics || {}) };
-      for (const file of eventPicFiles) {
-        const buf = await file.arrayBuffer();
-        const dataUrl = decodeTgaToDataUrl(buf);
-        if (dataUrl) {
+      for (const item of await decodeTgaFiles(eventPicFiles)) {
+        if (item) {
+          const { file, dataUrl } = item;
           const pathLower = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
           // Extract culture name from path: ui/[culture]/eventpics/name.tga
           const match = pathLower.match(/\/ui\/([^/]+)\/eventpics\//);
@@ -688,11 +697,9 @@ export default function Home() {
     if (bldTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, bld_images: 'loading' }));
       const parsed = [];
-      for (const file of bldTgaFiles) {
-        const buf = await file.arrayBuffer();
-        const url = decodeTgaToDataUrl(buf);
-        if (url) {
-          parsed.push({ path: file.webkitRelativePath || file.name, name: file.name, url });
+      for (const item of await decodeTgaFiles(bldTgaFiles)) {
+        if (item) {
+          parsed.push({ path: item.file.webkitRelativePath || item.file.name, name: item.file.name, url: item.dataUrl });
         }
       }
       loadBuildingTgaImages(parsed, true); // replace=true clears stale images

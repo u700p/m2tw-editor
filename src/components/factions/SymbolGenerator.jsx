@@ -183,13 +183,11 @@ const FIT_MODES = [
 ];
 
 const DEFAULT_SETS = [
-  { key: '80',  minW: 80, minH: 80,  label: 'Symbol 80',  folder: 'data/menu/symbols/fe_symbols_80',  variants: ['standard'] },
-  { key: '48',  minW: 59, minH: 59,  label: 'Symbol 48',  folder: 'data/menu/symbols/fe_buttons_48',  variants: ['standard', 'grey', 'roll', 'select'] },
-  { key: '24',  minW: 32, minH: 41,  label: 'Symbol 24',  folder: 'data/menu/symbols/fe_buttons_24',  variants: ['standard', 'grey', 'roll', 'select'] },
+  { key: '24',  minW: 32, minH: 41,  label: 'FE_buttons_24',  folder: 'data/menu/symbols/FE_buttons_24',  variants: ['standard', 'grey', 'roll', 'select'] },
+  { key: '48',  minW: 59, minH: 59,  label: 'FE_buttons_48',  folder: 'data/menu/symbols/FE_buttons_48',  variants: ['standard', 'grey', 'roll', 'select'] },
 ];
 
 function tgaFilename(factionName, setKey, variant) {
-  if (setKey === '80') return `${factionName}.tga`;
   const suffix = variant === 'standard' ? '' : `_${variant}`;
   return `symbol${setKey}_${factionName}${suffix}.tga`;
 }
@@ -231,20 +229,31 @@ function SetConfig({ set, config, onChange }) {
   const aspectH = set.minH;
 
   const handleW = (val) => {
-    const w = Math.max(set.minW, Number(val));
-    const h = Math.max(set.minH, Math.round(w * aspectH / aspectW));
-    onChange({ w, h });
+    const w = Math.max(set.minW, Number(val) || set.minW);
+    const h = config.lockAspect ? Math.max(set.minH, Math.round(w * aspectH / aspectW)) : config.h;
+    onChange({ ...config, w, h });
   };
 
   const handleH = (val) => {
-    const h = Math.max(set.minH, Number(val));
-    const w = Math.max(set.minW, Math.round(h * aspectW / aspectH));
-    onChange({ w, h });
+    const h = Math.max(set.minH, Number(val) || set.minH);
+    const w = config.lockAspect ? Math.max(set.minW, Math.round(h * aspectW / aspectH)) : config.w;
+    onChange({ ...config, w, h });
+  };
+
+  const setNative = () => onChange({ ...config, w: set.minW, h: set.minH });
+  const setSquare256 = () => onChange({ ...config, w: 256, h: 256, lockAspect: false });
+  const toggleLock = () => {
+    const lockAspect = !config.lockAspect;
+    onChange({
+      ...config,
+      lockAspect,
+      h: lockAspect ? Math.max(set.minH, Math.round(config.w * aspectH / aspectW)) : config.h,
+    });
   };
 
   return (
-    <div className="flex items-center gap-3 text-[10px] text-slate-400">
-      <span className="font-semibold text-slate-300 w-20">{set.label}</span>
+    <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
+      <span className="font-semibold text-slate-300 w-24">{set.label}</span>
       <label className="flex items-center gap-1">
         W <input
           type="number" min={set.minW} value={config.w}
@@ -259,7 +268,12 @@ function SetConfig({ set, config, onChange }) {
           className="w-14 bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-slate-200"
         />
       </label>
-      <span className="text-slate-600">min {set.minW}×{set.minH}</span>
+      <button type="button" onClick={toggleLock} className={`px-1.5 py-0.5 rounded border ${config.lockAspect ? 'border-amber-600/60 text-amber-300' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}>
+        {config.lockAspect ? 'locked' : 'free'}
+      </button>
+      <button type="button" onClick={setNative} className="px-1.5 py-0.5 rounded border border-slate-600 text-slate-400 hover:text-slate-200">native</button>
+      <button type="button" onClick={setSquare256} className="px-1.5 py-0.5 rounded border border-slate-600 text-slate-400 hover:text-slate-200">256x256</button>
+      <span className="text-slate-600">native {set.minW}x{set.minH}</span>
     </div>
   );
 }
@@ -279,7 +293,7 @@ export default function SymbolGenerator({ factionName }) {
 
   // Per-set resolution configs
   const [setConfigs, setSetConfigs] = useState(() =>
-    Object.fromEntries(DEFAULT_SETS.map(s => [s.key, { w: s.minW, h: s.minH }]))
+    Object.fromEntries(DEFAULT_SETS.map(s => [s.key, { w: s.minW, h: s.minH, lockAspect: true }]))
   );
 
   const fileRef = useRef();

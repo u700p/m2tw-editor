@@ -6,7 +6,7 @@ import SymbolGenerator from './SymbolGenerator';
 const SYMBOL_GROUPS = [
   {
     label: 'Symbol 24',
-    folder: 'data\\menu\\symbols\\fe_buttons_24',
+    folder: 'data\\menu\\symbols\\FE_buttons_24',
     slots: [
       { key: 'symbol24',        suffix: '',        filename: (f) => `symbol24_${f}.tga` },
       { key: 'symbol24_grey',   suffix: '_grey',   filename: (f) => `symbol24_${f}_grey.tga` },
@@ -16,26 +16,12 @@ const SYMBOL_GROUPS = [
   },
   {
     label: 'Symbol 48',
-    folder: 'data\\menu\\symbols\\fe_buttons_48',
+    folder: 'data\\menu\\symbols\\FE_buttons_48',
     slots: [
       { key: 'symbol48',        suffix: '',        filename: (f) => `symbol48_${f}.tga` },
       { key: 'symbol48_grey',   suffix: '_grey',   filename: (f) => `symbol48_${f}_grey.tga` },
       { key: 'symbol48_roll',   suffix: '_roll',   filename: (f) => `symbol48_${f}_roll.tga` },
       { key: 'symbol48_select', suffix: '_select', filename: (f) => `symbol48_${f}_select.tga` },
-    ],
-  },
-  {
-    label: 'Faction Unit',
-    folder: 'data\\menu\\symbols\\fe_faction_units',
-    slots: [
-      { key: 'faction_unit', suffix: '', filename: (f) => `${f}.tga` },
-    ],
-  },
-  {
-    label: 'Symbol 80',
-    folder: 'data\\menu\\symbols\\fe_symbols_80',
-    slots: [
-      { key: 'symbol80', suffix: '', filename: (f) => `${f}.tga` },
     ],
   },
 ];

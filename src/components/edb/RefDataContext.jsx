@@ -53,6 +53,17 @@ function parseMountFile(text) {
   return [...new Set(types)];
 }
 
+function parseKeywordList(text, keyword) {
+  const values = [];
+  const re = new RegExp(`^${keyword}\\s+(\\S+)`, 'i');
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.replace(/;.*$/, '').trim();
+    const m = line.match(re);
+    if (m) values.push(m[1]);
+  }
+  return [...new Set(values)].sort();
+}
+
 export function RefDataProvider({ children }) {
   const [factions, setFactions] = useState(DEFAULT_FACTIONS);
   const [cultures, setCultures] = useState(DEFAULT_CULTURES);
@@ -64,14 +75,18 @@ export function RefDataProvider({ children }) {
   const [mountTypes, setMountTypes] = useState([]); // string[]
   const [guildData, setGuildData] = useState(null); // { guilds: [], triggers: [] } | null
 
-  // Auto-restore from localStorage on mount
-  useEffect(() => {
+  const restoreCachedRefData = useCallback(() => {
     try {
       const facRaw = localStorage.getItem(LS_KEYS.factions);
       if (facRaw) {
         const result = parseFactionsFile(facRaw);
         if (result.factions) setFactions(result.factions);
         if (result.cultures) setCultures(result.cultures);
+      }
+      const cultureRaw = localStorage.getItem('m2tw_cultures_file') || sessionStorage.getItem('m2tw_cultures_raw');
+      if (cultureRaw) {
+        const parsed = parseKeywordList(cultureRaw, 'culture');
+        if (parsed.length) setCultures(parsed);
       }
       const resRaw = localStorage.getItem(LS_KEYS.resources);
       if (resRaw) {
@@ -88,6 +103,13 @@ export function RefDataProvider({ children }) {
       if (unitRaw) {
         const u = parseUnitsFile(unitRaw);
         if (u.length) setUnits(u);
+      }
+      const religionRaw = localStorage.getItem('m2tw_religions_file') || sessionStorage.getItem('m2tw_religions_raw');
+      if (religionRaw) {
+        const parsed = parseKeywordList(religionRaw, 'religion');
+        if (parsed.length) {
+          try { sessionStorage.setItem('m2tw_religions_list', JSON.stringify(parsed)); } catch {}
+        }
       }
       const skelRaw = localStorage.getItem(LS_KEYS.skeleton);
       if (skelRaw) {
@@ -108,23 +130,18 @@ export function RefDataProvider({ children }) {
     } catch {}
   }, []);
 
+  // Auto-restore from localStorage on mount
   useEffect(() => {
-    const handler = () => {
-      try {
-        const facRaw = localStorage.getItem(LS_KEYS.factions);
-        if (!facRaw) return;
-        const result = parseFactionsFile(facRaw);
-        if (result.factions) setFactions(result.factions);
-        if (result.cultures) setCultures(result.cultures);
-      } catch {}
-    };
-    window.addEventListener('factions-file-loaded', handler);
-    window.addEventListener('storage', handler);
+    restoreCachedRefData();
+  }, [restoreCachedRefData]);
+
+  useEffect(() => {
+    const events = ['factions-file-loaded', 'resources-file-loaded', 'events-file-loaded', 'edu-file-loaded', 'cultures-file-loaded', 'religions-file-loaded', 'storage'];
+    events.forEach(event => window.addEventListener(event, restoreCachedRefData));
     return () => {
-      window.removeEventListener('factions-file-loaded', handler);
-      window.removeEventListener('storage', handler);
+      events.forEach(event => window.removeEventListener(event, restoreCachedRefData));
     };
-  }, []);
+  }, [restoreCachedRefData]);
 
   const loadFactionsFile = useCallback((text) => {
     const result = parseFactionsFile(text);
