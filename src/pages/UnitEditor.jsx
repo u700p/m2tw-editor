@@ -390,6 +390,7 @@ export default function UnitEditorPage() {
     if (stack[stack.length - 1]?.key === key) return;
     stack.push({ key, snapshot });
     if (stack.length > 60) stack.shift();
+    setUndoCount(stack.length);
   }, []);
 
   const undoLast = useCallback(() => {
@@ -402,8 +403,13 @@ export default function UnitEditorPage() {
     setFilename(snap.filename || 'export_descr_unit.txt');
     saveUnits(snap.units);
     saveEduRaw(serializeEDU(snap.units), snap.filename || 'export_descr_unit.txt');
-    try { localStorage.setItem(EXPORT_UNITS_KEY + '_edits', JSON.stringify(snap.descrMap)); } catch {}
+    try {
+      localStorage.setItem(EXPORT_UNITS_KEY, serializeExportUnits(snap.descrMap));
+      localStorage.setItem(EXPORT_UNITS_KEY + '_edits', JSON.stringify(snap.descrMap));
+    } catch {}
+    setUndoCount(undoStackRef.current.length);
     window.dispatchEvent(new CustomEvent('edu-file-loaded', { detail: { source: 'unit-editor' } }));
+    window.dispatchEvent(new CustomEvent('load-export-units'));
   }, []);
 
   useEffect(() => {
@@ -436,8 +442,10 @@ export default function UnitEditorPage() {
     pushUndo();
     const updated = { ...descrMap, [active.dictionary]: val };
     setDescrMap(updated);
-    // Save edits back as a JSON overlay; the raw file is preserved separately
-    try { localStorage.setItem(EXPORT_UNITS_KEY + '_edits', JSON.stringify(updated)); } catch {}
+    try {
+      localStorage.setItem(EXPORT_UNITS_KEY, serializeExportUnits(updated));
+      localStorage.setItem(EXPORT_UNITS_KEY + '_edits', JSON.stringify(updated));
+    } catch {}
   };
 
   const loadEduText = useCallback((text, name = 'export_descr_unit.txt') => {
@@ -574,39 +582,21 @@ export default function UnitEditorPage() {
   };
 
   const handleFactionsLoad = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    loadFactionsFile(text, file.name); // saves shared faction keys via RefDataContext
-    // Also sync to FactionsEditor key so both editors share the same data
-    try {
-      localStorage.setItem('m2tw_sm_factions_raw', text);
-      localStorage.setItem('m2tw_factions_raw', text);
-      sessionStorage.setItem('m2tw_factions_raw', text);
-    } catch {}
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
+    for (const file of files) {
+      const text = await file.text();
+      loadFactionsText(text, file.name);
+    }
   };
 
-  const handleStringsBinLoad = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleUnitTextLoad = async (e) => {
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
-    let newDescr = {};
-    const text = await file.text();
-    newDescr = parseExportUnits(text);
-    try {
-      localStorage.setItem(EXPORT_UNITS_KEY, text);
-      localStorage.setItem('m2tw_export_units_file_name', file.name);
-    } catch {}
-    // Merge over existing
-    setDescrMap(prev => {
-      const merged = { ...prev };
-      for (const [k, v] of Object.entries(newDescr)) {
-        merged[k] = { ...(merged[k] || {}), ...v };
-      }
-      try { localStorage.setItem(EXPORT_UNITS_KEY + '_edits', JSON.stringify(merged)); } catch {}
-      return merged;
-    });
+    for (const file of files) {
+      const text = await file.text();
+      loadUnitText(text, file.name);
+    }
   };
 
   const [showMemoryNotice, setShowMemoryNotice] = useState(false);
@@ -690,11 +680,12 @@ export default function UnitEditorPage() {
           <button
             onClick={() => fileRef.current?.click()}
             className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Load one or more RTW text files: export_descr_unit.txt, export_units.txt, descr_sm_factions.txt, or descr_model_battle.txt"
           >
             <Upload className="w-3 h-3" />
-            Load EDU file
+            Load text files
           </button>
-          <input ref={fileRef} type="file" accept=".txt" className="hidden" onChange={handleFileLoad} />
+          <input ref={fileRef} type="file" accept=".txt" className="hidden" multiple onChange={handleTextFilesLoad} />
           <button
             onClick={() => modeldbRef.current?.click()}
             className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded border transition-colors ${modeldb ? 'border-green-700 text-green-400 hover:bg-green-950' : 'border-border hover:bg-accent text-muted-foreground hover:text-foreground'}`}
@@ -711,16 +702,25 @@ export default function UnitEditorPage() {
             <Shield className="w-3 h-3" />
             {refFactions?.length > 5 ? `Factions (${refFactions.length})` : 'Load factions'}
           </button>
-          <input ref={factionsRef} type="file" accept=".txt" className="hidden" onChange={handleFactionsLoad} />
+          <input ref={factionsRef} type="file" accept=".txt" className="hidden" multiple onChange={handleFactionsLoad} />
           <button
-            onClick={() => stringsBinRef.current?.click()}
+            onClick={() => unitTextRef.current?.click()}
             className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            title="Load export_units.txt"
+            title="Load one or more export_units.txt localization files"
           >
             <FileCode className="w-3 h-3" />
             Load Unit Text
           </button>
-          <input ref={stringsBinRef} type="file" accept=".txt" className="hidden" onChange={handleStringsBinLoad} />
+          <input ref={unitTextRef} type="file" accept=".txt" className="hidden" multiple onChange={handleUnitTextLoad} />
+          <button
+            onClick={undoLast}
+            disabled={!undoCount}
+            className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded border transition-colors ${undoCount ? 'border-border hover:bg-accent text-muted-foreground hover:text-foreground' : 'border-border/50 text-muted-foreground/40 cursor-not-allowed'}`}
+            title="Undo last Unit Editor change (Ctrl+Z)"
+          >
+            <Undo2 className="w-3 h-3" />
+            Undo
+          </button>
           <button
             onClick={() => unitUiFolderRef.current?.click()}
             className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
@@ -804,7 +804,7 @@ export default function UnitEditorPage() {
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
                   <Upload className="w-3.5 h-3.5" />
-                  Load EDU file
+                  Load text files
                 </Button>
                 <Button size="sm" onClick={handleAdd}>
                   <Plus className="w-3.5 h-3.5" />
