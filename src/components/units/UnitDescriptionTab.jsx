@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { Section } from './UnitStatRow';
-import { Upload, X, Download } from 'lucide-react';
+import { Upload, X, Download, Copy } from 'lucide-react';
 import { decodeTgaToDataUrl } from '../shared/tgaDecoder';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -196,6 +196,7 @@ function ImagesPanel({ dictLower, variant, unitImages, onImageUpload, onImageDel
 
 export default function UnitDescriptionTab({ dictionary, descr, onDescrChange, unitImages, onImageUpload, onImageDelete }) {
   const [imageTab, setImageTab] = useState('default');
+  const [copiedString, setCopiedString] = useState(false);
   // Sub-tab for descriptions (future: per-culture if needed)
   // For now description editing stays single; images are per-variant.
 
@@ -206,6 +207,19 @@ export default function UnitDescriptionTab({ dictionary, descr, onDescrChange, u
   const set = (key, val) => onDescrChange({ ...(descr || {}), [key]: val });
 
   const dictLower = (dictionary || '').toLowerCase();
+  const unitString = [
+    `{${dictionary}}\t${name}`,
+    `{${dictionary}_descr}`,
+    long,
+    `{${dictionary}_descr_short}`,
+    short,
+  ].join('\n');
+
+  const copyUnitString = async () => {
+    await navigator.clipboard.writeText(unitString);
+    setCopiedString(true);
+    setTimeout(() => setCopiedString(false), 1600);
+  };
 
   // Detect what faction/culture image variants are available in the loaded images
   const variants = useMemo(() => detectVariants(unitImages, dictLower), [unitImages, dictLower]);
@@ -289,6 +303,21 @@ export default function UnitDescriptionTab({ dictionary, descr, onDescrChange, u
             placeholder="Short description shown in recruitment and custom battles..."
             className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-sans resize-y leading-relaxed"
           />
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-[10px] text-muted-foreground font-medium block">RTW text string</label>
+            <button
+              onClick={copyUnitString}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <Copy className="w-3 h-3" />
+              {copiedString ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded border border-border bg-background p-2 text-[10px] leading-relaxed text-muted-foreground font-mono">
+            {unitString}
+          </pre>
         </div>
       </Section>
     </div>

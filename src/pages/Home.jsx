@@ -202,6 +202,23 @@ async function decodeTgaFiles(files) {
   });
 }
 
+function runInBackground(task) {
+  const runner = () => {
+    Promise.resolve()
+      .then(task)
+      .catch((err) => console.error('[Home] background load failed:', err));
+  };
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    window.requestIdleCallback(runner, { timeout: 250 });
+  } else {
+    setTimeout(runner, 0);
+  }
+}
+
+function yieldToBrowser() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function detectCampaignFolderName(files) {
   const samplePath = fileIdentity(files[0] || {});
   const framed = `/${samplePath}`;
@@ -355,7 +372,9 @@ export default function Home() {
     const eventPicFiles = [];
     const textLocFiles = {};
 
+    let scannedCount = 0;
     for (const file of files) {
+      if (++scannedCount % 40 === 0) await yieldToBrowser();
       const name = file.name.toLowerCase();
       const pathLower = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
       const pathFramed = `/${pathLower}`;
@@ -631,59 +650,70 @@ export default function Home() {
     // Auto-load ancillary images
     if (ancTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, anc_images: 'loading' }));
-      const images = {};
-      for (const item of await decodeTgaFiles(ancTgaFiles)) {
-        if (item) images[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
-      }
-      window.dispatchEvent(new CustomEvent('load-anc-tga-batch', { detail: images }));
-      setAncImgCount(Object.keys(images).length);
-      setFileStatus((prev) => ({ ...prev, anc_images: 'ok' }));
+      runInBackground(async () => {
+        const images = {};
+        for (const item of await decodeTgaFiles(ancTgaFiles)) {
+          if (item) images[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
+        }
+        window.dispatchEvent(new CustomEvent('load-anc-tga-batch', { detail: images }));
+        setAncImgCount(Object.keys(images).length);
+        setFileStatus((prev) => ({ ...prev, anc_images: 'ok' }));
+      });
     }
 
     // Auto-load unit images (icon: #dict.tga in ui/units/[faction|merc]/, info: dict_info.tga in ui/unit_info/[faction|merc]/)
     if (unitTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, unit_images: 'loading' }));
-      const images = {};
-      for (const item of await decodeTgaFiles(unitTgaFiles)) {
-        if (item) images[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
-      }
-      window._m2tw_unit_images = images;
-      window.dispatchEvent(new CustomEvent('load-unit-images', { detail: images }));
-      setUnitImgCount(Object.keys(images).length);
-      setFileStatus((prev) => ({ ...prev, unit_images: 'ok' }));
+      runInBackground(async () => {
+        const images = {};
+        for (const item of await decodeTgaFiles(unitTgaFiles)) {
+          if (item) images[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
+        }
+        window._m2tw_unit_images = images;
+        window.dispatchEvent(new CustomEvent('load-unit-images', { detail: images }));
+        setUnitImgCount(Object.keys(images).length);
+        setFileStatus((prev) => ({ ...prev, unit_images: 'ok' }));
+      });
     }
 
     // Auto-load religion pip images
     if (religionPipFiles.length > 0) {
-      const pips = {};
-      for (const item of await decodeTgaFiles(religionPipFiles)) {
-        if (item) pips[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
-      }
-      window._m2tw_religion_pips = { ...(window._m2tw_religion_pips || {}), ...pips };
+      runInBackground(async () => {
+        const pips = {};
+        for (const item of await decodeTgaFiles(religionPipFiles)) {
+          if (item) pips[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
+        }
+        window._m2tw_religion_pips = { ...(window._m2tw_religion_pips || {}), ...pips };
+      });
     }
 
     // Auto-load resource icons (ui/resources/*.tga)
     if (resourceTgaFiles.length > 0) {
-      const icons = {};
-      for (const item of await decodeTgaFiles(resourceTgaFiles)) {
-        if (item) icons[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
-      }
-      window._m2tw_resource_icons = { ...(window._m2tw_resource_icons || {}), ...icons };
-      window.dispatchEvent(new CustomEvent('load-resource-icons', { detail: icons }));
-      setFileStatus((prev) => ({ ...prev, resource_icons: 'ok' }));
+      setFileStatus((prev) => ({ ...prev, resource_icons: 'loading' }));
+      runInBackground(async () => {
+        const icons = {};
+        for (const item of await decodeTgaFiles(resourceTgaFiles)) {
+          if (item) icons[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
+        }
+        window._m2tw_resource_icons = { ...(window._m2tw_resource_icons || {}), ...icons };
+        window.dispatchEvent(new CustomEvent('load-resource-icons', { detail: icons }));
+        setFileStatus((prev) => ({ ...prev, resource_icons: 'ok' }));
+      });
     }
 
     // Auto-load ground type textures
     if (groundTypeTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, ground_textures: 'loading' }));
-      const textures = {};
-      for (const item of await decodeTgaFiles(groundTypeTgaFiles)) {
-        if (item) textures[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
-      }
-      window._m2tw_ground_textures = textures;
-      window.dispatchEvent(new CustomEvent('load-ground-textures', { detail: textures }));
-      setGroundTexCount(Object.keys(textures).length);
-      setFileStatus((prev) => ({ ...prev, ground_textures: 'ok' }));
+      runInBackground(async () => {
+        const textures = {};
+        for (const item of await decodeTgaFiles(groundTypeTgaFiles)) {
+          if (item) textures[item.file.name.replace(/\.tga$/i, '').toLowerCase()] = item.dataUrl;
+        }
+        window._m2tw_ground_textures = textures;
+        window.dispatchEvent(new CustomEvent('load-ground-textures', { detail: textures }));
+        setGroundTexCount(Object.keys(textures).length);
+        setFileStatus((prev) => ({ ...prev, ground_textures: 'ok' }));
+      });
     }
 
     // Auto-load base map files
@@ -697,58 +727,64 @@ export default function Home() {
 
     // Auto-load portrait images from data\ui\custom_portraits\[portrait_name]\portrait_*.tga
     if (portraitTgaFiles.length > 0) {
-      const portraits = { ...(window._m2tw_portraits || {}) };
-      for (const item of await decodeTgaFiles(portraitTgaFiles)) {
-        if (item) {
-          const { file, dataUrl } = item;
-          const pathLower2 = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
-          const baseName = file.name.replace(/\.tga$/i, '').toLowerCase();
-          // Extract portrait folder name from path: custom_portraits/[folder]/portrait_*.tga
-          const match = pathLower2.match(/custom_portraits\/([^/]+)\//);
-          if (match) {
-            // Key: "folderName/portrait_young" etc.
-            portraits[`${match[1]}/${baseName}`] = dataUrl;
-          } else {
-            portraits[baseName] = dataUrl;
+      runInBackground(async () => {
+        const portraits = { ...(window._m2tw_portraits || {}) };
+        for (const item of await decodeTgaFiles(portraitTgaFiles)) {
+          if (item) {
+            const { file, dataUrl } = item;
+            const pathLower2 = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
+            const baseName = file.name.replace(/\.tga$/i, '').toLowerCase();
+            // Extract portrait folder name from path: custom_portraits/[folder]/portrait_*.tga
+            const match = pathLower2.match(/custom_portraits\/([^/]+)\//);
+            if (match) {
+              // Key: "folderName/portrait_young" etc.
+              portraits[`${match[1]}/${baseName}`] = dataUrl;
+            } else {
+              portraits[baseName] = dataUrl;
+            }
           }
         }
-      }
-      window._m2tw_portraits = portraits;
-      window.dispatchEvent(new CustomEvent('load-portraits', { detail: portraits }));
+        window._m2tw_portraits = portraits;
+        window.dispatchEvent(new CustomEvent('load-portraits', { detail: portraits }));
+      });
     }
 
     // Auto-load event pics from data\ui\[culture]\eventpics\
     if (eventPicFiles.length > 0) {
-      const pics = { ...(window._m2tw_event_pics || {}) };
-      for (const item of await decodeTgaFiles(eventPicFiles)) {
-        if (item) {
-          const { file, dataUrl } = item;
-          const pathLower = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
-          // Extract culture name from path: ui/[culture]/eventpics/name.tga
-          const match = pathLower.match(/\/ui\/([^/]+)\/eventpics\//);
-          const culture = match ? match[1] : 'unknown';
-          const baseName = file.name.replace(/\.tga$/i, '').toLowerCase();
-          pics[`${culture}/${baseName}`] = dataUrl;
-          // Also store without culture prefix (last-write wins) for fallback
-          pics[baseName] = dataUrl;
+      runInBackground(async () => {
+        const pics = { ...(window._m2tw_event_pics || {}) };
+        for (const item of await decodeTgaFiles(eventPicFiles)) {
+          if (item) {
+            const { file, dataUrl } = item;
+            const pathLower = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
+            // Extract culture name from path: ui/[culture]/eventpics/name.tga
+            const match = pathLower.match(/\/ui\/([^/]+)\/eventpics\//);
+            const culture = match ? match[1] : 'unknown';
+            const baseName = file.name.replace(/\.tga$/i, '').toLowerCase();
+            pics[`${culture}/${baseName}`] = dataUrl;
+            // Also store without culture prefix (last-write wins) for fallback
+            pics[baseName] = dataUrl;
+          }
         }
-      }
-      window._m2tw_event_pics = pics;
-      window.dispatchEvent(new CustomEvent('load-event-pics', { detail: pics }));
+        window._m2tw_event_pics = pics;
+        window.dispatchEvent(new CustomEvent('load-event-pics', { detail: pics }));
+      });
     }
 
     // Auto-load building images from data\ui\[culture]\buildings\
     if (bldTgaFiles.length > 0) {
       setFileStatus((prev) => ({ ...prev, bld_images: 'loading' }));
-      const parsed = [];
-      for (const item of await decodeTgaFiles(bldTgaFiles)) {
-        if (item) {
-          parsed.push({ path: item.file.webkitRelativePath || item.file.name, name: item.file.name, url: item.dataUrl });
+      runInBackground(async () => {
+        const parsed = [];
+        for (const item of await decodeTgaFiles(bldTgaFiles)) {
+          if (item) {
+            parsed.push({ path: item.file.webkitRelativePath || item.file.name, name: item.file.name, url: item.dataUrl });
+          }
         }
-      }
-      loadBuildingTgaImages(parsed, true); // replace=true clears stale images
-      setBldImgCount(parsed.length);
-      setFileStatus((prev) => ({ ...prev, bld_images: 'ok' }));
+        loadBuildingTgaImages(parsed, true); // replace=true clears stale images
+        setBldImgCount(parsed.length);
+        setFileStatus((prev) => ({ ...prev, bld_images: 'ok' }));
+      });
     }
   };
 

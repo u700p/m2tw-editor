@@ -1,10 +1,10 @@
 const CHARACTER_KEYS = [
-  ['SPY', 'Scout'],
-  ['ASSASSIN', 'Blade'],
-  ['DIPLOMAT', 'Envoy'],
-  ['ADMIRAL', 'Fleet'],
+  ['SPY', 'Spy'],
+  ['ASSASSIN', 'Assassin'],
+  ['DIPLOMAT', 'Diplomat'],
+  ['ADMIRAL', 'Navy'],
   ['GENERAL', 'Army'],
-  ['NAMED_CHARACTER', 'Notable'],
+  ['NAMED_CHARACTER', 'Family Member'],
   ['MERCHANT', 'Merchant'],
   ['VILLAGE', 'Village'],
   ['TOWN', 'Town'],
@@ -29,6 +29,7 @@ export function ensureRtwFactionLocEntries(entries, factionName, options = {}) {
 
   const displayName = String(options.displayName || '').trim() || factionName;
   const adjective = String(options.adjective || '').trim() || displayName;
+  const pluralName = String(options.pluralName || '').trim() || `${adjective}s`;
   const leaderTitle = String(options.leaderTitle || '').trim() || 'Faction Leader';
   const heirTitle = String(options.heirTitle || '').trim() || 'Faction Heir';
 
@@ -58,17 +59,17 @@ export function ensureRtwFactionLocEntries(entries, factionName, options = {}) {
   upsert(`EMT_${factionUpper}_FACTION_LEADER`, leaderTitle, !!options.leaderTitle);
   upsert(`EMT_${factionUpper}_FACTION_HEIR`, heirTitle, !!options.heirTitle);
 
-  upsert(`EMT_YOUR_FORCES_ATTACK_ARMY_${factionUpper}`, `Your forces attack an army of the ${displayName}`);
-  upsert(`EMT_YOUR_FORCES_ATTACK_NAVY_${factionUpper}`, `Your forces attack a navy of the ${displayName}`);
-  upsert(`EMT_YOUR_FORCES_AMBUSH_ARMY_${factionUpper}`, `Your forces ambush an army of the ${displayName}`);
-  upsert(`EMT_YOUR_FORCES_ATTACKED_ARMY_${factionUpper}`, `Your forces are attacked by an army of the ${displayName}`);
-  upsert(`EMT_YOUR_FORCES_ATTACKED_NAVY_${factionUpper}`, `Your forces are attacked by a navy of the ${displayName}`);
-  upsert(`EMT_YOUR_FORCES_AMBUSHED_ARMY_${factionUpper}`, `Your forces are ambushed by an army of the ${displayName}`);
-  upsert(`EMT_VICTORY_${factionUpper}`, `The ${displayName} are victorious`);
-  upsert(`EMT_VICTORY_DESCR_${factionUpper}`, `The ${displayName} have prevailed.`);
-  upsert(`EMT_DEFEATED_BY_${factionUpper}`, `The ${displayName} have triumphed over their enemies.`);
-  upsert(`EMT_SHORT_VICTORY_${factionUpper}`, `${displayName} commands the world.`);
-  upsert(`${factionUpper}_DESCR`, `${adjective}s`);
+  upsert(`EMT_YOUR_FORCES_ATTACK_ARMY_${factionUpper}`, `Your forces attack an army of ${displayName}`);
+  upsert(`EMT_YOUR_FORCES_ATTACK_NAVY_${factionUpper}`, `Your forces attack a navy of ${displayName}`);
+  upsert(`EMT_YOUR_FORCES_AMBUSH_ARMY_${factionUpper}`, `Your forces ambush an army of ${displayName}`);
+  upsert(`EMT_YOUR_FORCES_ATTACKED_ARMY_${factionUpper}`, `Your forces are attacked by an army of ${displayName}`);
+  upsert(`EMT_YOUR_FORCES_ATTACKED_NAVY_${factionUpper}`, `Your forces are attacked by a navy of ${displayName}`);
+  upsert(`EMT_YOUR_FORCES_AMBUSHED_ARMY_${factionUpper}`, `Your forces are ambushed by an army of ${displayName}`);
+  upsert(`EMT_VICTORY_${factionUpper}`, `The ${pluralName} are victorious`);
+  upsert(`EMT_VICTORY_DESCR_${factionUpper}`, `${displayName} has risen from a regional power into a force feared across the world.`);
+  upsert(`EMT_DEFEATED_BY_${factionUpper}`, `Victory has been claimed by ${displayName}. Their enemies have been humbled, and their name now carries the authority of conquerors.`);
+  upsert(`EMT_SHORT_VICTORY_${factionUpper}`, `${displayName} stands among the powers of the world.`);
+  upsert(`${factionUpper}_DESCR`, `${pluralName}\\nCustom faction roster using available regional troops and existing equipment`);
 
   return next;
 }

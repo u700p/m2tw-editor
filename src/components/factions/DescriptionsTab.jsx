@@ -20,6 +20,21 @@ function entriesToMap(entries) {
   return map;
 }
 
+function titleCaseFactionName(name) {
+  const clean = String(name || '').replace(/_\d+$/i, '').replace(/_/g, ' ').trim();
+  return clean
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function defaultAdjective(displayName) {
+  if (!displayName) return '';
+  if (/a$/i.test(displayName)) return `${displayName}n`;
+  return displayName;
+}
+
 export default function DescriptionsTab({ factionName }) {
   const [localizationEntries, setLocalizationEntries] = useState([]);
   const [allEntries, setAllEntries] = useState([]);
@@ -105,6 +120,17 @@ export default function DescriptionsTab({ factionName }) {
     setShowCopyModal(true);
   };
 
+  const generateRtwEntries = () => {
+    const displayName = titleCaseFactionName(factionName);
+    const adjective = defaultAdjective(displayName);
+    const updated = ensureRtwFactionLocEntries(allEntries, factionName, { displayName, adjective });
+    const factionUpper = factionName.toUpperCase();
+    setAllEntries(updated);
+    setLocalizationEntries(updated.filter(entry => entry.key?.toUpperCase().includes(factionUpper)));
+    localStorage.setItem(GLOBAL_STRINGS_KEY, JSON.stringify({ entries: updated }));
+    window.dispatchEvent(new CustomEvent('strings-bin-updated'));
+  };
+
   const confirmCopyFromFaction = () => {
     if (!copySource) return;
     const srcUpper = copySource.toUpperCase();
@@ -173,6 +199,9 @@ export default function DescriptionsTab({ factionName }) {
               <Download className="w-3 h-3 mr-1" /> Export
             </Button>
           }
+          <Button variant="outline" size="sm" className="text-[10px]" onClick={generateRtwEntries}>
+            <Copy className="w-3 h-3 mr-1" /> Generate RTW entries
+          </Button>
         </div>
       </div>
 
@@ -315,7 +344,10 @@ export default function DescriptionsTab({ factionName }) {
             </Button>
           )}
           {allEntries.length === 0 && (
-            <p className="text-[10px]">Load expanded_bi.txt first.</p>
+            <Button variant="outline" size="sm" className="text-[10px] text-blue-300 border-blue-600 hover:bg-blue-900/30"
+              onClick={generateRtwEntries}>
+              <Copy className="w-3 h-3 mr-1" /> Generate RTW entries
+            </Button>
           )}
         </div>
       }
