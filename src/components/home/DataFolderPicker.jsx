@@ -367,7 +367,7 @@ export default function DataFolderPicker({ onLoad, loading }) {
                         <div className="space-y-1">
                           {(() => {
                             const baseFiles = (scanned.byCategory['campaign'] || []).filter(f =>
-                              (f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/').includes('/maps/base/'));
+                              `/${(f.webkitRelativePath || '').toLowerCase().replace(/\\/g, '/')}`.includes('/maps/base/'));
                             if (!baseFiles.length) return null;
                             const isExpB = expandedCampaign.has('__base__');
                             return (
