@@ -193,7 +193,9 @@ async function mapWithLimit(items, limit, mapper) {
 }
 
 async function decodeTgaFiles(files) {
-  return mapWithLimit(files, 8, async (file) => {
+  const cpuCount = typeof window !== 'undefined' ? window.navigator?.hardwareConcurrency || 8 : 8;
+  const limit = Math.max(8, Math.min(16, cpuCount * 2));
+  return mapWithLimit(files, limit, async (file) => {
     const buf = await file.arrayBuffer();
     const dataUrl = decodeTgaToDataUrl(buf);
     return dataUrl ? { file, dataUrl } : null;
@@ -763,12 +765,10 @@ export default function Home() {
     if (files.length === 0) return;
     setFileStatus((prev) => ({ ...prev, anc_images: 'loading' }));
     const images = {};
-    for (const file of files) {
-      const buf = await file.arrayBuffer();
-      const dataUrl = decodeTgaToDataUrl(buf);
-      if (dataUrl) {
-        const key = file.name.replace(/\.tga$/i, '').toLowerCase();
-        images[key] = dataUrl;
+    for (const item of await decodeTgaFiles(files)) {
+      if (item) {
+        const key = item.file.name.replace(/\.tga$/i, '').toLowerCase();
+        images[key] = item.dataUrl;
       }
     }
     window.dispatchEvent(new CustomEvent('load-anc-tga-batch', { detail: images }));
@@ -782,13 +782,11 @@ export default function Home() {
     if (files.length === 0) return;
     setFileStatus((prev) => ({ ...prev, unit_images: 'loading' }));
     const images = {};
-    for (const file of files) {
-      const buf = await file.arrayBuffer();
-      const dataUrl = decodeTgaToDataUrl(buf);
-      if (dataUrl) {
+    for (const item of await decodeTgaFiles(files)) {
+      if (item) {
         // Strip .tga, lowercase; keep filename only (not path)
-        const key = file.name.replace(/\.tga$/i, '').toLowerCase();
-        images[key] = dataUrl;
+        const key = item.file.name.replace(/\.tga$/i, '').toLowerCase();
+        images[key] = item.dataUrl;
       }
     }
     window._m2tw_unit_images = images;
@@ -803,11 +801,9 @@ export default function Home() {
     if (files.length === 0) return;
     setFileStatus((prev) => ({ ...prev, bld_images: 'loading' }));
     const parsed = [];
-    for (const file of files) {
-      const buf = await file.arrayBuffer();
-      const url = decodeTgaToDataUrl(buf);
-      if (url) {
-        parsed.push({ path: file.webkitRelativePath || file.name, name: file.name, url });
+    for (const item of await decodeTgaFiles(files)) {
+      if (item) {
+        parsed.push({ path: item.file.webkitRelativePath || item.file.name, name: item.file.name, url: item.dataUrl });
       }
     }
     loadBuildingTgaImages(parsed);

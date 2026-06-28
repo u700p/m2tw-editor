@@ -16,6 +16,7 @@ const EDU_FILE_KEY = 'm2tw_units_file';
 const EDU_FILE_NAME_KEY = 'm2tw_edu_file_name';
 const EXPORT_UNITS_KEY = 'm2tw_export_units_file';
 const UNIT_IMAGES_KEY = 'm2tw_unit_images';
+const MAX_PERSISTED_UNIT_IMAGES = 80;
 
 function loadUnits() {
   try {
@@ -41,6 +42,40 @@ function saveEduRaw(text, filename = '') {
   if (unitNames.length) {
     try { localStorage.setItem('m2tw_edu_units_list', JSON.stringify(unitNames)); } catch {}
   }
+}
+
+async function mapWithLimit(items, limit, mapper) {
+  const results = new Array(items.length);
+  let index = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await mapper(items[current], current);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function decodeTgaFiles(files) {
+  const cpuCount = typeof window !== 'undefined' ? window.navigator?.hardwareConcurrency || 8 : 8;
+  const limit = Math.max(8, Math.min(16, cpuCount * 2));
+  return mapWithLimit(files, limit, async (file) => {
+    const buf = await file.arrayBuffer();
+    const dataUrl = decodeTgaToDataUrl(buf);
+    return dataUrl ? { file, dataUrl } : null;
+  });
+}
+
+function persistUnitImages(images) {
+  const count = Object.keys(images || {}).length;
+  try {
+    if (count <= MAX_PERSISTED_UNIT_IMAGES) {
+      localStorage.setItem(UNIT_IMAGES_KEY, JSON.stringify(images));
+    } else {
+      localStorage.removeItem(UNIT_IMAGES_KEY);
+    }
+  } catch {}
 }
 
 function makeUniqueUnitValue(base, units, field) {
@@ -291,7 +326,7 @@ export default function UnitEditorPage() {
   useEffect(() => {
     const handler = (e) => {
       setUnitImages(e.detail);
-      try { localStorage.setItem(UNIT_IMAGES_KEY, JSON.stringify(e.detail)); } catch {}
+      persistUnitImages(e.detail);
     };
     window.addEventListener('load-unit-images', handler);
     return () => window.removeEventListener('load-unit-images', handler);
@@ -400,7 +435,7 @@ export default function UnitEditorPage() {
     const updated = { ...(unitImages || {}), [key]: dataUrl };
     window._m2tw_unit_images = updated;
     setUnitImages(updated);
-    try { localStorage.setItem(UNIT_IMAGES_KEY, JSON.stringify(updated)); } catch {}
+    persistUnitImages(updated);
   };
 
   const handleImageDelete = (key) => {
@@ -412,7 +447,7 @@ export default function UnitEditorPage() {
     }
     window._m2tw_unit_images = updated;
     setUnitImages(updated);
-    try { localStorage.setItem(UNIT_IMAGES_KEY, JSON.stringify(updated)); } catch {}
+    persistUnitImages(updated);
   };
 
   const handleFactionsLoad = async (e) => {
@@ -458,23 +493,21 @@ export default function UnitEditorPage() {
     e.target.value = '';
     if (!files.length) return;
     const images = {};
-    for (const file of files) {
-      const buf = await file.arrayBuffer();
+    for (const item of await decodeTgaFiles(files)) {
+      if (!item) continue;
+      const { file, dataUrl } = item;
       // Store under full relative path (lowercased) AND bare filename for flexible lookup
-      const dataUrl = decodeTgaToDataUrl(buf);
-      if (dataUrl) {
-        const bareName = file.name.replace(/\.tga$/i, '').toLowerCase();
-        // webkitRelativePath gives e.g. "units/english/unit_spearmen.tga"
-        const relPath = (file.webkitRelativePath || file.name).replace(/\.tga$/i, '').toLowerCase();
-        images[bareName] = dataUrl;
-        if (relPath !== bareName) images[relPath] = dataUrl;
-      }
+      const bareName = file.name.replace(/\.tga$/i, '').toLowerCase();
+      // webkitRelativePath gives e.g. "units/english/unit_spearmen.tga"
+      const relPath = (file.webkitRelativePath || file.name).replace(/\.tga$/i, '').toLowerCase();
+      images[bareName] = dataUrl;
+      if (relPath !== bareName) images[relPath] = dataUrl;
     }
     const updated = { ...(unitImages || {}), ...images };
     window._m2tw_unit_images = updated;
     setUnitImages(updated);
-    try { localStorage.setItem(UNIT_IMAGES_KEY, JSON.stringify(updated)); } catch {}
-    if (files.length > 50) setShowMemoryNotice(true);
+    persistUnitImages(updated);
+    if (files.length > MAX_PERSISTED_UNIT_IMAGES) setShowMemoryNotice(true);
   };
 
   const handleDownload = () => {

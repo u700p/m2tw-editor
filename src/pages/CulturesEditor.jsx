@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { getStringsBinStore, setStringsBinStore } from '../lib/stringsBinStore';
-import { Globe, FolderOpen, Download, Plus, Trash2, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { Globe, FolderOpen, Download, Trash2, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseDescrCulturesFull, serializeDescrCulturesFull, SETTLEMENT_TYPES, AGENT_TYPES } from '../components/cultures/culturesParser';
 import { textBlob } from '@/lib/lineEndings';
@@ -29,6 +29,24 @@ function downloadText(text, filename) {
   a.href = URL.createObjectURL(textBlob(text));
   a.download = filename;
   a.click();
+}
+
+function normalizeCultureName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function uniqueCultureName(base, cultures) {
+  const existing = new Set(cultures.map(c => c.name.toLowerCase()));
+  const cleanBase = normalizeCultureName(base) || 'new_culture';
+  if (!existing.has(cleanBase)) return cleanBase;
+  let i = 2;
+  let name = `${cleanBase}_${i}`;
+  while (existing.has(name.toLowerCase())) name = `${cleanBase}_${++i}`;
+  return name;
 }
 
 // ── Path input helper ─────────────────────────────────────────────────────────
@@ -365,6 +383,16 @@ export default function CulturesEditor() {
 
   const selected = cultures[selectedIdx] || null;
 
+  const saveCultures = useCallback((next) => {
+    setCultures(next);
+    try {
+      const text = serializeDescrCulturesFull(next);
+      localStorage.setItem('m2tw_cultures_file', text);
+      sessionStorage.setItem('m2tw_cultures_raw', text);
+      window.dispatchEvent(new CustomEvent('cultures-file-loaded'));
+    } catch {}
+  }, []);
+
   const handleLoad = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -373,7 +401,7 @@ export default function CulturesEditor() {
     try { localStorage.setItem('m2tw_cultures_file', text); sessionStorage.setItem('m2tw_cultures_raw', text); } catch {}
     setRawText(text);
     const parsed = parseDescrCulturesFull(text);
-    setCultures(parsed);
+    saveCultures(parsed);
     setSelectedIdx(0);
   };
 
@@ -384,17 +412,30 @@ export default function CulturesEditor() {
   };
 
   const updateSelected = useCallback((updated) => {
-    setCultures(prev => prev.map((c, i) => i === selectedIdx ? updated : c));
+    setCultures(prev => {
+      const next = prev.map((c, i) => i === selectedIdx ? updated : c);
+      try {
+        const text = serializeDescrCulturesFull(next);
+        localStorage.setItem('m2tw_cultures_file', text);
+        sessionStorage.setItem('m2tw_cultures_raw', text);
+        window.dispatchEvent(new CustomEvent('cultures-file-loaded'));
+      } catch {}
+      return next;
+    });
   }, [selectedIdx]);
 
   const handleAddCulture = () => {
     if (!cultures.length) return;
-    // Duplicate the first culture as a template
-    const base = JSON.parse(JSON.stringify(cultures[selectedIdx] || cultures[0]));
-    base.name = `new_culture_${cultures.length}`;
-    base.portraitMapping = base.name;
+    const source = cultures[selectedIdx] || cultures[0];
+    const suggested = uniqueCultureName(`${source.name}_copy`, cultures);
+    const typed = window.prompt('Duplicate culture as:', suggested);
+    if (typed === null) return;
+    const nextName = uniqueCultureName(typed, cultures);
+    const base = JSON.parse(JSON.stringify(source));
+    base.name = nextName;
+    base.portraitMapping = nextName;
     const updated = [...cultures, base];
-    setCultures(updated);
+    saveCultures(updated);
     setSelectedIdx(updated.length - 1);
     // Automatically add string entries to expanded_bi.txt.
     upsertCultureStrings(base.name);
@@ -403,7 +444,7 @@ export default function CulturesEditor() {
   const handleDeleteCulture = (idx) => {
     if (cultures.length <= 1) return;
     const updated = cultures.filter((_, i) => i !== idx);
-    setCultures(updated);
+    saveCultures(updated);
     setSelectedIdx(Math.min(idx, updated.length - 1));
   };
 
@@ -453,8 +494,8 @@ export default function CulturesEditor() {
         <div className="w-44 border-r border-slate-800 flex flex-col shrink-0 bg-slate-900/40">
           <div className="px-2 py-1.5 border-b border-slate-800 flex items-center justify-between">
             <span className="text-[10px] font-semibold text-slate-400 uppercase">Cultures ({cultures.length})</span>
-            <button onClick={handleAddCulture} title="Duplicate selected as new" className="text-slate-500 hover:text-amber-400 transition-colors">
-              <Plus className="w-3.5 h-3.5" />
+            <button onClick={handleAddCulture} title="Duplicate selected culture" className="text-slate-500 hover:text-amber-400 transition-colors">
+              <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto py-1">
