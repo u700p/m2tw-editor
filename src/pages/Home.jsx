@@ -297,9 +297,10 @@ export default function Home() {
     for (const file of files) {
       const name = file.name.toLowerCase();
       const pathLower = (file.webkitRelativePath || file.name).toLowerCase().replace(/\\/g, '/');
+      const pathFramed = `/${pathLower}`;
 
       let textOverride = null;
-      if (pathLower.includes('/text/') && name.endsWith('.txt')) {
+      if (pathFramed.includes('/text/') && name.endsWith('.txt')) {
         textOverride = await readText(file);
         const locMap = parseTextLocFile(textOverride);
         const entries = textLocMapToEntries(locMap);
@@ -345,23 +346,23 @@ export default function Home() {
 
       // Route TGA files by folder path
       if (name.endsWith('.tga')) {
-        if (pathLower.includes('/ui/ancillaries/')) {
+        if (pathFramed.includes('/ui/ancillaries/')) {
           ancTgaFiles.push(file);
-        } else if (pathLower.includes('/ui/units/') || pathLower.includes('/ui/unit_info/')) {
+        } else if (pathFramed.includes('/ui/units/') || pathFramed.includes('/ui/unit_info/')) {
           unitTgaFiles.push(file);
-        } else if (pathLower.includes('/ui/') && pathLower.includes('/buildings/')) {
+        } else if (pathFramed.includes('/ui/') && pathFramed.includes('/buildings/')) {
           bldTgaFiles.push(file);
-        } else if (pathLower.includes('/ui/') && pathLower.includes('/eventpics/')) {
+        } else if (pathFramed.includes('/ui/') && pathFramed.includes('/eventpics/')) {
           eventPicFiles.push(file);
-        } else if (pathLower.includes('/ui/') && (pathLower.includes('/portraits/') || pathLower.includes('/portrait/') || pathLower.includes('/custom_portraits/'))) {
+        } else if (pathFramed.includes('/ui/') && (pathFramed.includes('/portraits/') || pathFramed.includes('/portrait/') || pathFramed.includes('/custom_portraits/'))) {
           portraitTgaFiles.push(file);
-        } else if (pathLower.includes('/ui/resources/') || pathLower.includes('/ui/resource/')) {
+        } else if (pathFramed.includes('/ui/resources/') || pathFramed.includes('/ui/resource/')) {
           resourceTgaFiles.push(file);
-        } else if (pathLower.includes('/pips/') || pathLower.includes('/religion/')) {
+        } else if (pathFramed.includes('/pips/') || pathFramed.includes('/religion/')) {
           religionPipFiles.push(file);
-        } else if (pathLower.includes('/maps/base/')) {
+        } else if (pathFramed.includes('/maps/base/')) {
           baseMapFiles.push(file);
-        } else if (pathLower.includes('/terrain/aerial_map/ground_types/')) {
+        } else if (pathFramed.includes('/terrain/aerial_map/ground_types/')) {
           groundTypeTgaFiles.push(file);
         }
         continue;
@@ -369,12 +370,12 @@ export default function Home() {
 
       // Base map text files (forward to campaign map editor)
       const BASE_MAP_TXTS = ['descr_strat.txt', 'descr_regions.txt', 'descr_sounds_music_types.txt', 'descr_terrain.txt'];
-      if (BASE_MAP_TXTS.includes(name) && pathLower.includes('/maps/base/')) {
+      if (BASE_MAP_TXTS.includes(name) && pathFramed.includes('/maps/base/')) {
         baseMapFiles.push(file);
         continue;
       }
       // descr_disasters.txt lives in maps/base/
-      if (name === 'descr_disasters.txt' && pathLower.includes('/maps/base/')) {
+      if (name === 'descr_disasters.txt' && pathFramed.includes('/maps/base/')) {
         const txt = await readText(file);
         try { localStorage.setItem('m2tw_campaign_disasters', txt); sessionStorage.setItem('m2tw_disasters_raw', txt); } catch {}
         continue;
@@ -382,7 +383,7 @@ export default function Home() {
 
       // Campaign map text + TGA files (base, imperial, or custom/* subfolders)
       const CAMPAIGN_MAP_TXTS = ['descr_strat.txt', 'descr_regions.txt', 'descr_mercenaries.txt', 'descr_win_conditions.txt', 'campaign_script.txt', 'descr_event.txt', 'descr_events.txt', 'description.txt', 'descr_faction_movies.xml', 'descr_disasters.txt'];
-      const inCampaignPath = pathLower.includes('/maps/campaign/') || pathLower.includes('/maps/base/');
+      const inCampaignPath = pathFramed.includes('/maps/campaign/') || pathFramed.includes('/maps/base/');
       if ((CAMPAIGN_MAP_TXTS.includes(name) || name.endsWith('.tga')) && inCampaignPath) {
         baseMapFiles.push(file);
         // Store campaign text files in localStorage/sessionStorage for map editor
