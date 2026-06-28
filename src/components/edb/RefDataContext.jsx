@@ -139,7 +139,10 @@ export function RefDataProvider({ children }) {
   const loadResourcesFile = useCallback((text) => {
     const res = parseResourcesFile(text);
     if (res.length) setMapResources(res);
-    try { localStorage.setItem(LS_KEYS.resources, text); } catch {}
+    try {
+      localStorage.setItem(LS_KEYS.resources, text);
+      window.dispatchEvent(new CustomEvent('resources-file-loaded'));
+    } catch {}
   }, []);
 
   const loadEventsFile = useCallback((text) => {
@@ -148,7 +151,10 @@ export function RefDataProvider({ children }) {
     const scriptCounters = scriptRaw ? parseCampaignScriptCounters(scriptRaw) : [];
     const merged = [...new Set([...evs, ...scriptCounters])];
     if (merged.length) setEventCounters(merged);
-    try { localStorage.setItem(LS_KEYS.events, text); } catch {}
+    try {
+      localStorage.setItem(LS_KEYS.events, text);
+      window.dispatchEvent(new CustomEvent('events-file-loaded'));
+    } catch {}
   }, []);
 
   const loadCampaignScript = useCallback((text) => {
@@ -160,7 +166,10 @@ export function RefDataProvider({ children }) {
   const loadUnitsFile = useCallback((text) => {
     const u = parseUnitsFile(text);
     if (u.length) setUnits(u);
-    try { localStorage.setItem(LS_KEYS.units, text); } catch {}
+    try {
+      localStorage.setItem(LS_KEYS.units, text);
+      window.dispatchEvent(new CustomEvent('edu-file-loaded'));
+    } catch {}
   }, []);
 
   const loadSkeletonFile = useCallback((text) => {
