@@ -20,7 +20,6 @@ export const BUILDING_TRAITS = [
 
 export const SETTLEMENT_TYPES = ['city'];
 export const SETTLEMENT_LEVELS = ['village', 'town', 'large_town', 'city', 'large_city', 'huge_city'];
-export const MATERIALS = ['wooden', 'stone'];
 
 export const CULTURES = [
   'roman', 'barbarian', 'greek', 'carthaginian', 'eastern', 'egyptian'
@@ -392,7 +391,6 @@ function parseLevelBlock(lines, startIndex, levelName, settlementType, requiresS
     convertTo: null,
     capabilities: [],
     factionCapability: [],
-    material: 'wooden',
     construction: 1,
     cost: 0,
     settlementMin: 'village',
@@ -639,7 +637,6 @@ function serializeLevel(level) {
     out += '            }\n';
   }
   
-  out += `            material ${level.material}\n`;
   out += `            construction  ${level.construction} \n`;
   out += `            cost  ${level.cost} \n`;
   out += `            settlement_min ${level.settlementMin}\n`;
@@ -704,7 +701,6 @@ export function createDefaultBuilding(name) {
         { type: 'bonus', identifier: 'happiness_bonus', needsBonus: true, value: 1 }
       ],
       factionCapability: [],
-      material: 'wooden',
       construction: 2,
       cost: 600,
       settlementMin: 'village',
@@ -852,7 +848,6 @@ export function createDefaultLevel(baseName, index) {
     convertTo: null,
     capabilities: [],
     factionCapability: [],
-    material: 'wooden',
     construction: 2,
     cost: 600,
     settlementMin: 'village',

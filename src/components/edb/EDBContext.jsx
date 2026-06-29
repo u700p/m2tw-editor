@@ -130,6 +130,12 @@ export function EDBProvider({ children }) {
       // Note: image data URLs are NOT restored from localStorage (too large, quota killer)
     } catch {}
     let cancelled = false;
+    loadLargeText(EDB_LS_KEY).then((record) => {
+      if (cancelled || !record?.text) return;
+      const parsed = parseEDB(record.text);
+      setEdbData(prev => prev || parsed);
+      setFileName(prev => prev || record.metadata?.filename || 'export_descr_buildings.txt');
+    }).catch(() => {});
     loadLargeText(EDB_TXT_LS_KEY).then((record) => {
       if (cancelled || !record?.text) return;
       const parsed = parseTextFile(record.text);
@@ -149,6 +155,7 @@ export function EDBProvider({ children }) {
       localStorage.setItem(EDB_LS_KEY, text);
       localStorage.setItem(EDB_LS_NAME_KEY, name || 'export_descr_buildings.txt');
     } catch {}
+    saveLargeText(EDB_LS_KEY, text, { filename: name || 'export_descr_buildings.txt' }).catch(() => {});
   }, []);
 
   const exportEDB = useCallback(() => {
@@ -487,8 +494,10 @@ export function EDBProvider({ children }) {
     if (edbData) {
       try {
         const { serializeEDB, serializeTextFile } = await import('./EDBParser');
-        localStorage.setItem('m2tw_edb_file', serializeEDB(edbData));
+        const edbSerialized = serializeEDB(edbData);
+        localStorage.setItem('m2tw_edb_file', edbSerialized);
         localStorage.setItem('m2tw_edb_file_name', fileName);
+        await saveLargeText(EDB_LS_KEY, edbSerialized, { filename: fileName || 'export_descr_buildings.txt' });
         if (textData && Object.keys(textData).length > 0) {
           const txtSerialized = serializeTextFile(textData);
           try { localStorage.setItem('m2tw_edb_txt_file', txtSerialized); } catch {}

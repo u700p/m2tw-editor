@@ -14,7 +14,7 @@ import {
 '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 
-import { SETTLEMENT_TYPES, SETTLEMENT_LEVELS, MATERIALS } from './EDBParser';
+import { SETTLEMENT_TYPES, SETTLEMENT_LEVELS } from './EDBParser';
 import CapabilityEditor from './CapabilityEditor.jsx';
 import RequirementBuilder from './RequirementBuilder';
 import SearchableSelect from './SearchableSelect.jsx';
@@ -137,15 +137,6 @@ function LevelEditorInner({ building, level, levelIndex, selectedBuilding, selec
                   <SelectTrigger className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {SETTLEMENT_TYPES.map((t) => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-[10px] text-muted-foreground">Material</Label>
-                <Select value={level.material} onValueChange={(v) => update('material', v)}>
-                  <SelectTrigger className="h-7 text-xs mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {MATERIALS.map((m) => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

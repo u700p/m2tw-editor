@@ -17,6 +17,7 @@ import { parseTextLocFile, serializeTextLocFile, textLocMapToEntries } from '@/l
 import { ensureRtwFactionLocEntries } from '@/lib/factionLoc';
 import { getEduRawText, loadEduRawText, setEduRawText } from '@/lib/eduStorage';
 import { getTextLocalizationStore, hydrateTextLocalizationStore, updateTextLocalizationFile } from '@/lib/textLocalizationStore';
+import { loadLargeText, saveLargeText } from '@/lib/largeTextStore';
 
 const LS_OFFMAP = 'm2tw_offmap_models';
 const LS_GLOBAL_STRINGS = 'rtw_expanded_text_global';
@@ -167,6 +168,92 @@ function copyEduOwnershipFromFaction(sourceFaction, targetFaction) {
   return true;
 }
 
+function appendFactionToRequirementBlocks(rawText, sourceIdentifiers, targetFaction) {
+  const dst = String(targetFaction || '').trim();
+  if (!rawText || !dst) return { text: rawText || '', changed: false };
+  const sourceSet = new Set((sourceIdentifiers || [])
+    .map((name) => String(name || '').trim().toLowerCase())
+    .filter(Boolean));
+  if (!sourceSet.size) return { text: rawText, changed: false };
+
+  let changed = false;
+  const replaceRequirements = (line) => line.replace(/factions\s*\{([^}]*)\}/gi, (match, body) => {
+    const owners = body.split(',').map((part) => part.trim()).filter(Boolean);
+    const lowerOwners = owners.map((owner) => owner.toLowerCase());
+    if (lowerOwners.includes('all') || lowerOwners.includes(dst.toLowerCase())) return match;
+    if (!lowerOwners.some((owner) => sourceSet.has(owner))) return match;
+    changed = true;
+    const updated = [...owners, dst];
+    return `factions { ${updated.join(', ')}, }`;
+  });
+
+  const text = String(rawText)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trimStart().startsWith(';') ? line : replaceRequirements(line))
+    .join('\n');
+
+  return { text, changed };
+}
+
+function copyEdbFactionRequirements(sourceFaction, targetFaction, sourceCulture = '') {
+  const raw = getStoredText(['m2tw_edb_file', 'm2tw_edb_file_raw']);
+  if (!raw) return false;
+  const { text, changed } = appendFactionToRequirementBlocks(raw, [sourceFaction, sourceCulture], targetFaction);
+  if (!changed) return false;
+  try {
+    localStorage.setItem('m2tw_edb_file', text);
+    localStorage.setItem('m2tw_edb_file_name', 'export_descr_buildings.txt');
+    sessionStorage.setItem('m2tw_edb_file_raw', text);
+  } catch {}
+  saveLargeText('m2tw_edb_file', text, { filename: 'export_descr_buildings.txt' }).catch(() => {});
+  window.dispatchEvent(new CustomEvent('edb-file-updated', { detail: { filename: 'export_descr_buildings.txt' } }));
+  return true;
+}
+
+function replaceWholeWordInsensitive(text, source, target) {
+  const src = String(source || '').trim();
+  if (!src) return text;
+  return String(text || '').replace(new RegExp(`\\b${src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), target);
+}
+
+function copyRtwBannersText(sourceFaction, targetFaction) {
+  const src = String(sourceFaction || '').trim();
+  const dst = String(targetFaction || '').trim();
+  if (!src || !dst) return false;
+  const raw = getStoredText([BANNERS_GLOBAL_KEY, 'm2tw_descr_banners_file', 'm2tw_descr_banners_file_raw']);
+  if (!raw || /^\s*</.test(raw)) return false;
+
+  const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const factionLine = (line) => line.match(/^\s*faction\s+(\S+)/i)?.[1] || '';
+  if (lines.some((line) => factionLine(line).toLowerCase() === dst.toLowerCase())) return false;
+
+  const start = lines.findIndex((line) => factionLine(line).toLowerCase() === src.toLowerCase());
+  if (start < 0) return false;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^\s*(banner|faction)\s+\S+/i.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+
+  const block = lines.slice(start, end).map((line, idx) => {
+    if (idx === 0) return line.replace(/(\bfaction\s+)\S+/i, `$1${dst}`);
+    return replaceWholeWordInsensitive(line, src, dst);
+  });
+  const comment = `;; ${dst}`;
+  const out = [...lines.slice(0, end), '', comment, ...block, ...lines.slice(end)];
+  const text = out.join('\n').replace(/\n{4,}/g, '\n\n\n');
+  try {
+    localStorage.setItem(BANNERS_GLOBAL_KEY, text);
+    localStorage.setItem('m2tw_descr_banners_file', text);
+  } catch {}
+  window.dispatchEvent(new CustomEvent('banners-xml-loaded'));
+  return true;
+}
+
 const VANILLA_FACTION_LIMIT = 31;
 const LS_KEY = 'm2tw_sm_factions_raw';
 const LS_CULT = 'm2tw_cultures_list';
@@ -196,7 +283,6 @@ function saveEduRaw(text, filename = '') {
 }
 
 const FACTION_SETUP_DATA_FILES = [
-  { path: 'data/descr_banners_new.xml', sources: [BANNERS_GLOBAL_KEY, 'm2tw_descr_banners_file', 'm2tw_descr_banners_file_raw'] },
   { path: 'data/descr_building_battle.txt', sources: ['m2tw_descr_building_battle_file', 'm2tw_descr_building_battle_file_raw'] },
   { path: 'data/descr_character.txt', sources: ['m2tw_descr_character', 'm2tw_descr_character_raw'] },
   { path: 'data/descr_formations_ai.txt', sources: ['m2tw_descr_formations_ai_file', 'm2tw_descr_formations_ai_file_raw'] },
@@ -206,6 +292,7 @@ const FACTION_SETUP_DATA_FILES = [
   { path: 'data/descr_names.txt', sources: ['m2tw_descr_names_raw', 'm2tw_names_file'] },
   { path: 'data/descr_offmap_models.txt', sources: [LS_OFFMAP, 'm2tw_offmap_models_raw'] },
   { path: 'data/descr_standards.txt', sources: ['m2tw_descr_standards_file', 'm2tw_descr_standards_file_raw'] },
+  { path: 'data/descr_ui_buildings.txt', sources: ['m2tw_descr_ui_buildings_file', 'm2tw_descr_ui_buildings_file_raw'] },
   { path: 'data/export_descr_buildings.txt', sources: ['m2tw_edb_file'] },
 ];
 
@@ -262,6 +349,7 @@ function buildFactionSetupManifest(included) {
   const includedSet = new Set(included);
   const expected = [
     'data/descr_sm_factions.txt',
+    'data/descr_banners.txt',
     ...FACTION_SETUP_DATA_FILES.map((f) => f.path),
     'data/export_descr_unit.txt',
     'data/text/campaign_descriptions.txt',
@@ -918,10 +1006,12 @@ export default function FactionsEditor() {
     e.target.value = '';
   }, []);
 
-  const loadBannersXml = useCallback(async (e) => {
+  const loadBannersFile = useCallback(async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const text = await file.text();
     localStorage.setItem(BANNERS_GLOBAL_KEY, text);
+    localStorage.setItem('m2tw_descr_banners_file', text);
+    localStorage.setItem('m2tw_descr_banners_file_name', file.name);
     setBannersLoaded(true);
     window.dispatchEvent(new CustomEvent('banners-xml-loaded'));
     e.target.value = '';
@@ -973,8 +1063,24 @@ export default function FactionsEditor() {
       : getStoredText(['m2tw_factions_raw', 'm2tw_sm_factions_raw', 'm2tw_factions_file']);
     addCRLFText(zip, 'data/descr_sm_factions.txt', factionsText, included);
 
+    const bannersText = getStoredText([BANNERS_GLOBAL_KEY, 'm2tw_descr_banners_file', 'm2tw_descr_banners_file_raw']);
+    if (bannersText) {
+      addCRLFText(
+        zip,
+        /^\s*</.test(bannersText) ? 'data/descr_banners_new.xml' : 'data/descr_banners.txt',
+        bannersText,
+        included
+      );
+    }
+
     for (const file of FACTION_SETUP_DATA_FILES) {
       addStoredText(zip, file.path, file.sources, included);
+    }
+    if (!included.includes('data/export_descr_buildings.txt')) {
+      try {
+        const record = await loadLargeText('m2tw_edb_file');
+        addCRLFText(zip, 'data/export_descr_buildings.txt', record?.text || '', included);
+      } catch {}
     }
 
     const { text: eduText } = await loadEduRawText();
@@ -1049,6 +1155,7 @@ export default function FactionsEditor() {
       '+ menu faction labels ensured when menu text is loaded',
       '+ descr_offmap_models.txt navy entry ensured when loaded',
       options.eduCopied ? '+ export_descr_unit.txt ownership copied from source faction' : '+ export_descr_unit.txt ownership unchanged unless copied from a source faction',
+      options.edbCopied ? '+ export_descr_buildings.txt faction requirements copied from source faction/culture' : '+ export_descr_buildings.txt unchanged unless matching source faction/culture requirements were loaded',
       options.bannersCopied ? '+ descr_banners entries copied from source faction' : '+ descr_banners unchanged unless duplicating a source faction',
       'Manual: descr_strat.txt placement/playability, descr_regions.txt ownership/regions, descr_win_conditions.txt, and graphical assets.',
       'Manual if adding new character names: descr_names.txt and data/text/names.txt.',
@@ -1158,6 +1265,9 @@ export default function FactionsEditor() {
     try {
       const srcBannersData = localStorage.getItem(BANNERS_GLOBAL_KEY);
       if (srcBannersData) {
+        if (!/^\s*</.test(srcBannersData)) {
+          bannersCopied = copyRtwBannersText(src.name, newFactionName);
+        } else {
         const parsed = parseBannersXml(srcBannersData);
         const srcNameLower = src.name.toLowerCase();
         const newFactionLower = newFactionName.toLowerCase();
@@ -1242,6 +1352,7 @@ export default function FactionsEditor() {
         localStorage.setItem(BANNERS_GLOBAL_KEY, newXaml);
         window.dispatchEvent(new CustomEvent('banners-xml-loaded'));
         bannersCopied = true;
+        }
       }
     } catch (err) {
       console.error('Failed to copy banners:', err);
@@ -1342,12 +1453,14 @@ export default function FactionsEditor() {
     }
     
     const eduCopied = copyEduOwnershipFromFaction(src.name, newFactionName);
+    const edbCopied = copyEdbFactionRequirements(src.name, newFactionName, src.culture);
     applyFactionAutomation(newFactionName, {
       displayName: duplicateStrings.displayName || newFactionName,
       adjective: duplicateStrings.adjective || duplicateStrings.displayName || newFactionName,
       leaderTitle: duplicateStrings.leaderTitle,
       heirTitle: duplicateStrings.heirTitle,
       eduCopied,
+      edbCopied,
       bannersCopied,
     });
     setDuplicateModalOpen(false);
@@ -1422,10 +1535,10 @@ export default function FactionsEditor() {
             {eduUnits.length ? `${eduUnits.length} units` : 'export_descr_unit.txt'}
           </Button>
 
-          <input ref={bannersRef} type="file" accept=".xml" className="hidden" onChange={loadBannersXml} />
+          <input ref={bannersRef} type="file" accept=".txt,.xml,text/plain,text/xml" className="hidden" onChange={loadBannersFile} />
           <Button variant="outline" size="sm" className={`text-[10px] h-7 ${bannersLoaded ? 'text-green-300 border-green-700' : ''}`} onClick={() => bannersRef.current?.click()}>
             <Upload className="w-3 h-3 mr-1" />
-            {bannersLoaded ? 'Banners ✓' : 'descr_banners_new.xml'}
+            {bannersLoaded ? 'Banners ✓' : 'descr_banners.txt'}
           </Button>
 
           <input ref={stringsRef} type="file" accept=".txt,text/plain" className="hidden" onChange={loadExpandedText} />
@@ -1461,8 +1574,9 @@ export default function FactionsEditor() {
             <Button variant="outline" size="sm" className="text-[10px] h-7 text-slate-200 border-slate-600 hover:bg-slate-700" onClick={() => {
               const data = localStorage.getItem(BANNERS_GLOBAL_KEY);
               if (!data) return;
-              const blob = textBlob(data, 'text/xml');
-              const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'descr_banners_new.xml'; a.click();
+              const isXml = /^\s*</.test(data);
+              const blob = textBlob(data, isXml ? 'text/xml' : 'text/plain');
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = isXml ? 'descr_banners_new.xml' : 'descr_banners.txt'; a.click();
             }}>
               <Download className="w-3 h-3 mr-1" /> Export banners
             </Button>

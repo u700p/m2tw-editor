@@ -17,6 +17,7 @@ import { useEDB } from './EDBContext';
 import { useRefData } from './RefDataContext';
 import { serializeEDB } from './EDBParser';
 import { parseTextLocFile, serializeTextLocFile } from '@/lib/textLocParser';
+import { toCRLF } from '@/lib/lineEndings';
 
 const IMAGE_SLOT_DEFS = [
   { type: 'icon',         w: 64,  h: 51  },
@@ -142,7 +143,7 @@ export default function EDBExporter() {
       const zip = new JSZip();
 
       // 1. EDB file — encode as UTF-8 with Windows line endings (CRLF)
-      const edbText = serializeEDB(edbData).replace(/\n/g, '\r\n');
+      const edbText = toCRLF(serializeEDB(edbData));
       zip.file('data/export_descr_buildings.txt', edbText);
 
       // 2. Building text localization
@@ -150,7 +151,7 @@ export default function EDBExporter() {
       const baseEntries = existingTextEntries;
       const merged = mergeEntries(baseEntries, expectedEntries);
       const textMap = Object.fromEntries(merged.map(({ key, value }) => [key, value]));
-      zip.file('data/text/export_buildings.txt', serializeTextLocFile(textMap));
+      zip.file('data/text/export_buildings.txt', toCRLF(serializeTextLocFile(textMap)));
 
       // 3. Building images as TGA
       if (imageData && Object.keys(imageData).length > 0) {

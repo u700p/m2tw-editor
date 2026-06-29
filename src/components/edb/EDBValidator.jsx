@@ -1,4 +1,4 @@
-import { SETTLEMENT_TYPES, MATERIALS, SETTLEMENT_LEVELS } from './EDBParser';
+import { SETTLEMENT_TYPES, SETTLEMENT_LEVELS } from './EDBParser';
 
 export function validateEDB(edbData) {
   if (!edbData) return [];
@@ -54,9 +54,6 @@ export function validateEDB(edbData) {
       const ln = level.name;
       if (!SETTLEMENT_TYPES.includes(level.settlementType)) {
         issues.push({ severity: 'error', building: bn, level: ln, message: `Invalid settlement type: "${level.settlementType}"` });
-      }
-      if (!MATERIALS.includes(level.material)) {
-        issues.push({ severity: 'warning', building: bn, level: ln, message: `Unknown material: "${level.material}"` });
       }
       if (!SETTLEMENT_LEVELS.includes(level.settlementMin)) {
         issues.push({ severity: 'warning', building: bn, level: ln, message: `Unknown settlement_min: "${level.settlementMin}"` });

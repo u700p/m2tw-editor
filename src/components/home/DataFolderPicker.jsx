@@ -17,7 +17,7 @@ const TEXT_FILENAMES = new Set([
   'descr_banners.txt','descr_banners.xml','descr_banners_new.xml',
   'descr_building_battle.txt','descr_character.txt','descr_formations_ai.txt',
   'descr_lbc_db.txt','descr_model_strat.txt','descr_offmap_models.txt',
-  'descr_standards.txt',
+  'descr_standards.txt','descr_ui_buildings.txt',
   'export_descr_character_traits.txt','export_descr_ancillaries.txt','export_units.txt',
   'descr_cultures.txt','descr_names.txt','descr_rebel_factions.txt','descr_religions.txt',
   'export_descr_guilds.txt','battle_models.modeldb','descr_model_battle.txt','descr_skeleton.txt','descr_mount.txt',
