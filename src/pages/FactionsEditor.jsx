@@ -1390,7 +1390,7 @@ export default function FactionsEditor() {
       '+ descr_offmap_models.txt navy entry ensured when loaded',
       options.characterCopied ? '+ descr_character.txt faction entries created' : '+ descr_character.txt unchanged unless a source/slave entry was loaded',
       options.eduCopied ? '+ export_descr_unit.txt ownership copied from source faction' : '+ export_descr_unit.txt ownership unchanged unless copied from a source faction',
-      options.unitAssigned ? `+ export_descr_unit.txt assigned ${options.unitAssigned} slave roster units` : '+ export_descr_unit.txt auto roster unchanged unless enabled and slave units were loaded',
+      options.unitAssigned ? `+ export_descr_unit.txt assigned ${options.unitAssigned} slave roster units${options.generalAssigned ? ' including a general_unit' : ''}` : '+ export_descr_unit.txt auto roster unchanged unless enabled and slave units were loaded',
       options.edbCopied ? '+ export_descr_buildings.txt faction requirements copied from source faction/culture' : '+ export_descr_buildings.txt unchanged unless matching source faction/culture requirements were loaded',
       options.bannersCopied ? '+ descr_banners entries copied from source faction' : '+ descr_banners unchanged unless duplicating a source faction',
       'Manual: descr_strat.txt placement/playability, descr_regions.txt ownership/regions, descr_win_conditions.txt, and graphical assets.',
@@ -1433,11 +1433,12 @@ export default function FactionsEditor() {
     setSelectedIdx(updated.length - 1);
     saveFactionsRaw(serialiseDescrSmFactions(updated), 'descr_sm_factions.txt');
     const characterCopied = copyDescrCharacterEntries('slave', newF.name);
-    const unitAssign = assignSlaveUnitsToFaction(newF.name, newF.name, { min: 12, max: 15, packUi: true });
+    const unitAssign = assignSlaveUnitsToFaction(newF.name, newF.name, { count: 13, packUi: true });
     applyFactionAutomation(newF.name, {
       displayName: newF.name,
       characterCopied,
       unitAssigned: unitAssign.count,
+      generalAssigned: unitAssign.generalAssigned,
     });
   };
 
@@ -1452,7 +1453,8 @@ export default function FactionsEditor() {
     heirTitle: '',
     strengths: '',
     weaknesses: '',
-    customUnit: ''
+    customUnit: '',
+    unitDescription: ''
   });
   const [duplicateOptions, setDuplicateOptions] = useState({
     createCharacters: true,
@@ -1478,7 +1480,8 @@ export default function FactionsEditor() {
       heirTitle: '',
       strengths: '',
       weaknesses: '',
-      customUnit: ''
+      customUnit: '',
+      unitDescription: ''
     });
     setDuplicateOptions({
       createCharacters: true,
@@ -1493,7 +1496,7 @@ export default function FactionsEditor() {
     const src = factions[duplicateSourceIdx];
     const newFactionName = duplicateName.trim();
     const nameUpper = newFactionName.toUpperCase();
-    const { displayName, adjective, sourceAdjective, leaderTitle, heirTitle, strengths, weaknesses, customUnit } = duplicateStrings;
+    const { displayName, adjective, sourceAdjective, leaderTitle, heirTitle, strengths, weaknesses, customUnit, unitDescription } = duplicateStrings;
     
     const dup = {
       ...src,
@@ -1623,6 +1626,7 @@ export default function FactionsEditor() {
       strengths,
       weaknesses,
       customUnit,
+      unitDescription,
       src.culture,
       src.name,
     ].filter(Boolean).join(' ');
@@ -1630,7 +1634,7 @@ export default function FactionsEditor() {
       ? copyDescrCharacterEntries(src.name, newFactionName, src.culture)
       : false;
     const unitAssign = duplicateOptions.assignSlaveUnits
-      ? assignSlaveUnitsToFaction(newFactionName, unitProfileText, { min: 12, max: 15, packUi: duplicateOptions.packUnitCards })
+      ? assignSlaveUnitsToFaction(newFactionName, unitProfileText, { count: 13, packUi: duplicateOptions.packUnitCards })
       : { count: 0 };
     const eduCopied = copyEduOwnershipFromFaction(src.name, newFactionName);
     const edbCopied = copyEdbFactionRequirements(src.name, newFactionName, src.culture);
@@ -1641,6 +1645,7 @@ export default function FactionsEditor() {
       heirTitle: duplicateStrings.heirTitle,
       characterCopied,
       unitAssigned: unitAssign.count,
+      generalAssigned: unitAssign.generalAssigned,
       eduCopied,
       edbCopied,
       bannersCopied,
@@ -1656,7 +1661,8 @@ export default function FactionsEditor() {
       heirTitle: '',
       strengths: '',
       weaknesses: '',
-      customUnit: ''
+      customUnit: '',
+      unitDescription: ''
     });
     setDuplicateOptions({
       createCharacters: true,
@@ -1897,7 +1903,7 @@ export default function FactionsEditor() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 border border-slate-700 rounded p-2 bg-slate-950/40">
               {[
                 ['createCharacters', 'descr_character entries'],
-                ['assignSlaveUnits', '12-15 slave units'],
+                ['assignSlaveUnits', '13 units + general'],
                 ['packUnitCards', 'Pack slave UI cards'],
               ].map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2 text-[10px] text-slate-300">
@@ -1998,6 +2004,17 @@ export default function FactionsEditor() {
                   placeholder="e.g. Keshik Guard"
                   className="h-7 text-[10px] px-2 bg-slate-700 border-slate-600 text-slate-100"
                 />
+              </div>
+
+              <div className="mt-3">
+                <label className="text-[9px] text-slate-400 block mb-1">Unit Assignment Description</label>
+                <textarea
+                  value={duplicateStrings.unitDescription}
+                  onChange={(e) => setDuplicateStrings(s => ({ ...s, unitDescription: e.target.value }))}
+                  placeholder="e.g. Egyptian/Greek infantry with archers and light cavalry"
+                  className="w-full h-16 bg-slate-700 border border-slate-600 rounded p-2 text-[10px] text-slate-100 resize-none"
+                />
+                <p className="text-[9px] text-slate-500 mt-1">Used to pick the 13 slave-owned units for this faction.</p>
               </div>
             </div>
           </div>
